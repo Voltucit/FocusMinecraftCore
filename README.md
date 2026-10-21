@@ -2,17 +2,17 @@
 
 使用 **.NET 10 / C# 14** 开发的 Minecraft Java 版启动核心。一个核心类库即可接入 WPF、Avalonia、WinUI 或控制台应用，核心不依赖 GUI 框架，不强制使用依赖注入。
 
-当前已实现 **T01–T06 / P0**。NuGet 包名为 **`FocusMinecraftCore`**，首个 NuGet 目标版本为 **`0.1.0-preview.2`**；仓库、程序集与代码命名空间仍为 `FMCore`。公开上传及收录状态见[首次发布检查报告](https://github.com/Voltucit/FMCore/blob/main/docs/validation/t065-release.md)。
+当前已实现 **T01–T06 / P0**，已发布 [**FocusMinecraftCore 0.1.0-preview.2**](https://www.nuget.org/packages/FocusMinecraftCore/0.1.0-preview.2)。GitHub 仓库、程序集与代码命名空间仍为 `FMCore`。[GitHub Release](https://github.com/Voltucit/FMCore/releases/tag/v0.1.0-preview.2)提供核心包、符号包及中文更新日志，实际验收见[发布报告](https://github.com/Voltucit/FMCore/blob/main/docs/validation/t065-release.md)。
 
 ## 安装
 
-完成 NuGet.org 公开发布并收录后，在目标为 .NET 10 的项目执行：
+在目标为 .NET 10 的项目执行：
 
 ```shell
 dotnet add package FocusMinecraftCore --version 0.1.0-preview.2
 ```
 
-发布前可使用本地产物源验收，见[发布与更新手册](https://github.com/Voltucit/FMCore/blob/main/docs/releasing.md)。包附带 XML API 文档、SourceLink 与独立符号包；部分存量模型成员的 XML 说明尚未补全。
+已通过独立项目从 NuGet.org 恢复并调用公开 API 验证。源码开发、本地产物源及后续发布步骤见[发布与更新手册](https://github.com/Voltucit/FMCore/blob/main/docs/releasing.md)。包附带 XML API 文档、SourceLink 与独立符号包；部分存量模型成员的 XML 说明尚未补全。
 
 ## 快速入门
 

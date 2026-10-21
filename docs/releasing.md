@@ -1,6 +1,6 @@
 # 发布与后续更新
 
-仓库：`https://github.com/Voltucit/FMCore`；PackageId：`FocusMinecraftCore`；首个 NuGet 目标版本：`0.1.0-preview.2`。程序集与命名空间保持 `FMCore`，代码仍使用 `FMCore.*`。实际 Tag、Release 和 NuGet 状态见[发布报告](validation/t065-release.md)。配置或本地打包成功不代表已公开发布。
+仓库：`https://github.com/Voltucit/FMCore`；PackageId：`FocusMinecraftCore`；首个已发布 NuGet 版本：`0.1.0-preview.2`。程序集与命名空间保持 `FMCore`，代码仍使用 `FMCore.*`。该版本已完成官方源安装及搜索验收，见[发布报告](validation/t065-release.md)。后续版本仍需逐项检查，不以本次成功替代新的发布验收。
 
 ## 本地构建和验收
 
@@ -27,6 +27,8 @@ dotnet restore --source E:/rider/project/FMCore/artifacts/packages --source http
 ```
 
 本地源用于首次验收；正式公开后使用 README 中的 NuGet.org 安装命令。Windows 终端如执行策略限制脚本，可使用受信任的 PowerShell 会话运行，避免全局修改执行策略。
+
+正式发行以对应 Tag 工作流的产物为准。主分支的普通 CI 包是构建快照；文档更新后的主分支可以生成不同提交信息的包，不能因此覆盖或重新上传已经发布的同一版本。`0.1.0-preview.2` 绑定 `v0.1.0-preview.2` 对应的 `475721a` 提交。
 
 ## 包内容与 SourceLink
 
