@@ -1,4 +1,4 @@
-# FMCore
+# FocusMinecraftCore
 
 使用 **.NET 10 / C# 14** 开发的 Minecraft Java 版启动核心。一个核心类库即可接入 WPF、Avalonia、WinUI 或控制台应用，核心不依赖 GUI 框架，不强制使用依赖注入。
 
