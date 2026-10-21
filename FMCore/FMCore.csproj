@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <Description>FMCore：面向 .NET 启动器开发者的 Minecraft Java 版启动核心，提供下载、版本、Java、安装、账号与启动 API。</Description>
+    <PackageId>FMCore</PackageId>
+    <Version>0.1.0-preview.1</Version>
+    <Authors>Voltucit</Authors>
+    <Copyright>Copyright (c) 2026 Voltucit</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageProjectUrl>https://github.com/Voltucit/FMCore</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Voltucit/FMCore</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>minecraft;launcher;dotnet;sdk</PackageTags>
+    <PackageReleaseNotes>首个 P0 预览版：下载、版本、Java、原版安装、Microsoft/离线账号及原版启动。兼容性和限制见 README 与 CHANGELOG。</PackageReleaseNotes>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <DebugType>portable</DebugType>
+    <EnablePackageValidation>true</EnablePackageValidation>
+    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <!-- Legacy model members are documented incrementally; new SDK entry points include XML summaries. -->
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="../README.md" Pack="true" PackagePath="/" />
+    <None Include="../LICENSE" Pack="true" PackagePath="/" />
+    <None Include="../NOTICE.md" Pack="true" PackagePath="/" />
+    <None Include="../CHANGELOG.md" Pack="true" PackagePath="/" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" />
+    <InternalsVisibleTo Include="FMCore.Tests" />
+  </ItemGroup>
+</Project>

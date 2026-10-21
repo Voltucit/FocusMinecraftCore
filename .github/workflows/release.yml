@@ -1,0 +1,128 @@
+name: 手动公开发布
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 已检查并创建 Tag 的版本号
+        required: true
+        default: 0.1.0-preview.1
+      confirmation:
+        description: 输入 publish FMCore 加空格和版本号，确认公开发布
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fmcore-release
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    if: github.ref == 'refs/heads/main'
+    runs-on: windows-latest
+    steps:
+      - name: 验证手动确认
+        shell: pwsh
+        env:
+          VERSION: ${{ inputs.version }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          if ($env:VERSION -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*)?$') { throw 'Invalid version.' }
+          if ($env:CONFIRMATION -cne "publish FMCore $env:VERSION") { throw 'Explicit publication confirmation is required.' }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: v${{ inputs.version }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: 确认 Tag 与包版本一致
+        shell: pwsh
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          $project = [xml](Get-Content FMCore/FMCore.csproj -Raw)
+          if ($project.Project.PropertyGroup.Version -cne $env:VERSION) { throw 'Tag/package version mismatch.' }
+          if ((git describe --tags --exact-match HEAD) -cne "v$env:VERSION") { throw 'Tag does not resolve exactly.' }
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - run: dotnet restore FMCore.slnx
+      - run: dotnet build FMCore.slnx -c Release --no-restore
+      - run: dotnet test FMCore.slnx -c Release --no-build
+      - run: dotnet pack FMCore/FMCore.csproj -c Release --no-build -o artifacts/packages
+      - name: 独立包验证
+        shell: pwsh
+        run: ./scripts/Verify-Package.ps1
+      - name: 文档示例验收
+        shell: pwsh
+        run: ./scripts/Verify-Examples.ps1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: FMCore-release-packages
+          path: |
+            artifacts/packages/*.nupkg
+            artifacts/packages/*.snupkg
+          if-no-files-found: error
+
+  nuget:
+    needs: prepare
+    runs-on: windows-latest
+    environment: nuget
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          dotnet-version: 10.0.402
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: FMCore-release-packages
+          path: artifacts/packages
+      - name: 拒绝重复上传已有版本
+        shell: pwsh
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          $version = $env:VERSION.ToLowerInvariant()
+          $response = Invoke-WebRequest "https://api.nuget.org/v3-flatcontainer/fmcore/$version/fmcore.$version.nupkg" -Method Head -SkipHttpErrorCheck -TimeoutSec 30
+          if ($response.StatusCode -ne 404) { throw "Version already exists, or availability check failed (HTTP $($response.StatusCode))." }
+      - uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1
+        id: login
+        with:
+          user: Voltucit
+      - name: 使用 OIDC 短期凭据上传包和符号
+        shell: pwsh
+        env:
+          VERSION: ${{ inputs.version }}
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+        run: dotnet nuget push "artifacts/packages/FMCore.$env:VERSION.nupkg" --api-key $env:NUGET_API_KEY --source https://api.nuget.org/v3/index.json
+
+  github-release:
+    needs: nuget
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: v${{ inputs.version }}
+          persist-credentials: false
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8
+        with:
+          name: FMCore-release-packages
+          path: artifacts/packages
+      - name: 创建 Release 并附加包及中文更新日志
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          $releaseArgs = @('release', 'create', "v$env:VERSION", '--verify-tag', '--repo', $env:REPOSITORY,
+            '--title', "FMCore $env:VERSION", '--notes-file', 'CHANGELOG.md',
+            "artifacts/packages/FMCore.$env:VERSION.nupkg", "artifacts/packages/FMCore.$env:VERSION.snupkg", 'CHANGELOG.md')
+          if ($env:VERSION.Contains('-')) { $releaseArgs += '--prerelease' }
+          & gh @releaseArgs
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub Release creation failed. Do not re-upload the NuGet version.' }

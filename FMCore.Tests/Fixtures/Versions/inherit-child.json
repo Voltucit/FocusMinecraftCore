@@ -1,0 +1,15 @@
+{
+  "id": "test-child",
+  "inheritsFrom": "test-base",
+  "mainClass": "org.example.LoaderMain",
+  "arguments": { "jvm": ["-Dchild=true"], "game": ["--child"] },
+  "libraries": [
+    { "name": "org.ow2.asm:asm:9.7.1", "url": "https://maven.fabricmc.net/" },
+    { "name": "org.example:native:1.0", "downloads": {
+        "artifact": { "url": "https://downloads.example.test/native.jar", "path": "org/example/native/1.0/native-1.0.jar" },
+        "classifiers": { "natives-windows-64": { "url": "https://downloads.example.test/native64.jar", "path": "org/example/native/1.0/native-1.0-natives-windows-64.jar" } }
+      }, "natives": { "windows": "natives-windows-${arch}" }, "extract": { "exclude": ["META-INF/"] }
+    }
+  ],
+  "futureField": { "added": 2, "overridden": "child" }
+}

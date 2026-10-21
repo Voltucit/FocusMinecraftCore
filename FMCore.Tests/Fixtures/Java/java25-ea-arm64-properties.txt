@@ -1,0 +1,8 @@
+Property settings:
+    java.home = /fixture/jdk25-ea
+    java.vendor = Oracle Corporation
+    java.version = 25-ea
+    os.arch = aarch64
+    sun.arch.data.model = 64
+openjdk version "25-ea" 2025-09-16
+OpenJDK Runtime Environment (build 25-ea+12-123)

@@ -1,0 +1,26 @@
+# Build and test output
+**/bin/
+**/obj/
+artifacts/
+TestResults/
+*.trx
+/packages/
+
+# Local IDE state
+.idea/
+.vs/
+*.user
+*.suo
+riderModule.iml
+/_ReSharper.Caches/
+
+# Local credentials and game data
+.env
+.env.*
+!.env.example
+.minecraft/
+.fmcore/
+accounts.json
+accounts.lock
+**/tokens/*.dat
+**/tokens/.fmcore-*.tmp

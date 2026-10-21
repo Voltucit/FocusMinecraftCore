@@ -1,0 +1,24 @@
+{
+  "Version": "1.16.5",
+  "VerifiedAtUtc": "2026-10-21T04:31:32.95911+00:00",
+  "OperatingSystem": "windows",
+  "Architecture": "amd64",
+  "Java": "1.8.0_482",
+  "DownloadedFiles": 0,
+  "SkippedFiles": 2640,
+  "DownloadedBytes": 0,
+  "LogicalAssets": 2615,
+  "UniqueAssets": 2596,
+  "LibraryFiles": 41,
+  "NativeArchives": 8,
+  "NativeFiles": 38,
+  "IndependentlyVerifiedFiles": 2640,
+  "IndependentlyVerifiedBytes": 401773932,
+  "Repeat": {
+    "DownloadedFiles": 0,
+    "SkippedFiles": 2640,
+    "HttpRequests": 0
+  },
+  "GameStarted": false,
+  "JavaDownloaded": false
+}

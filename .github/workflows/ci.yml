@@ -1,0 +1,42 @@
+name: 构建、测试与打包
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: Restore
+        run: dotnet restore FMCore.slnx
+      - name: Build
+        run: dotnet build FMCore.slnx --configuration Release --no-restore
+      - name: Test
+        run: dotnet test FMCore.slnx --configuration Release --no-build
+      - name: Pack
+        run: dotnet pack FMCore/FMCore.csproj -c Release --no-build -o artifacts/packages
+      - name: 独立 NuGet 包引用验证
+        shell: pwsh
+        run: ./scripts/Verify-Package.ps1
+      - name: 中文文档示例编译
+        shell: pwsh
+        run: ./scripts/Verify-Examples.ps1
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
+        with:
+          name: FMCore-preview-packages
+          path: |
+            artifacts/packages/*.nupkg
+            artifacts/packages/*.snupkg
+          if-no-files-found: error

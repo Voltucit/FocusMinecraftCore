@@ -1,0 +1,8 @@
+Property settings:
+    java.home = /fixture/jdk21
+    java.vendor = Eclipse Adoptium
+    java.version = 21.0.6
+    os.arch = x86_64
+    sun.arch.data.model = 64
+openjdk version "21.0.6" 2025-01-21 LTS
+OpenJDK Runtime Environment Temurin-21.0.6+7 (build 21.0.6+7-LTS)
