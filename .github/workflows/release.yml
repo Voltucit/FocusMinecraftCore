@@ -6,13 +6,16 @@ on:
       version:
         description: 已检查并创建 Tag 的版本号
         required: true
-        default: 0.1.0-preview.1
+        default: 0.1.0-preview.2
       confirmation:
-        description: 输入 publish FMCore 加空格和版本号，确认公开发布
+        description: 输入 publish FocusMinecraftCore 加空格和版本号，确认公开发布
         required: true
 
 permissions:
   contents: read
+
+env:
+  PACKAGE_ID: FocusMinecraftCore
 
 concurrency:
   group: fmcore-release
@@ -30,7 +33,7 @@ jobs:
           CONFIRMATION: ${{ inputs.confirmation }}
         run: |
           if ($env:VERSION -notmatch '^\d+\.\d+\.\d+(?:-[0-9A-Za-z]+(?:\.[0-9A-Za-z]+)*)?$') { throw 'Invalid version.' }
-          if ($env:CONFIRMATION -cne "publish FMCore $env:VERSION") { throw 'Explicit publication confirmation is required.' }
+          if ($env:CONFIRMATION -cne "publish $env:PACKAGE_ID $env:VERSION") { throw 'Explicit publication confirmation is required.' }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: v${{ inputs.version }}
@@ -43,6 +46,7 @@ jobs:
         run: |
           $project = [xml](Get-Content FMCore/FMCore.csproj -Raw)
           if ($project.Project.PropertyGroup.Version -cne $env:VERSION) { throw 'Tag/package version mismatch.' }
+          if ($project.Project.PropertyGroup.PackageId -cne $env:PACKAGE_ID) { throw 'Workflow/package ID mismatch.' }
           if ((git describe --tags --exact-match HEAD) -cne "v$env:VERSION") { throw 'Tag does not resolve exactly.' }
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
@@ -86,7 +90,8 @@ jobs:
           VERSION: ${{ inputs.version }}
         run: |
           $version = $env:VERSION.ToLowerInvariant()
-          $response = Invoke-WebRequest "https://api.nuget.org/v3-flatcontainer/fmcore/$version/fmcore.$version.nupkg" -Method Head -SkipHttpErrorCheck -TimeoutSec 30
+          $id = $env:PACKAGE_ID.ToLowerInvariant()
+          $response = Invoke-WebRequest "https://api.nuget.org/v3-flatcontainer/$id/$version/$id.$version.nupkg" -Method Head -SkipHttpErrorCheck -TimeoutSec 30
           if ($response.StatusCode -ne 404) { throw "Version already exists, or availability check failed (HTTP $($response.StatusCode))." }
       - uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1
         id: login
@@ -97,7 +102,7 @@ jobs:
         env:
           VERSION: ${{ inputs.version }}
           NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
-        run: dotnet nuget push "artifacts/packages/FMCore.$env:VERSION.nupkg" --api-key $env:NUGET_API_KEY --source https://api.nuget.org/v3/index.json
+        run: dotnet nuget push "artifacts/packages/$env:PACKAGE_ID.$env:VERSION.nupkg" --api-key $env:NUGET_API_KEY --source https://api.nuget.org/v3/index.json
 
   github-release:
     needs: nuget
@@ -122,7 +127,7 @@ jobs:
         run: |
           $releaseArgs = @('release', 'create', "v$env:VERSION", '--verify-tag', '--repo', $env:REPOSITORY,
             '--title', "FMCore $env:VERSION", '--notes-file', 'CHANGELOG.md',
-            "artifacts/packages/FMCore.$env:VERSION.nupkg", "artifacts/packages/FMCore.$env:VERSION.snupkg", 'CHANGELOG.md')
+            "artifacts/packages/$env:PACKAGE_ID.$env:VERSION.nupkg", "artifacts/packages/$env:PACKAGE_ID.$env:VERSION.snupkg", 'CHANGELOG.md')
           if ($env:VERSION.Contains('-')) { $releaseArgs += '--prerelease' }
           & gh @releaseArgs
           if ($LASTEXITCODE -ne 0) { throw 'GitHub Release creation failed. Do not re-upload the NuGet version.' }

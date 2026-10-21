@@ -2,7 +2,18 @@
 
 版本号采用阶段性策略。此文件只记录已实现能力，不将模拟测试表述为真实游戏验证。
 
-## 0.1.0-preview.1 — 首个 P0 预览版
+## 0.1.0-preview.2 — 首个 NuGet 预览版
+
+### 发布与兼容性
+
+- NuGet 包名按用户确认调整为 **FocusMinecraftCore**；仓库、程序集 `FMCore.dll`、命名空间 `FMCore.*` 和公开业务 API 保持原样。
+- 安装命令调整为 `dotnet add package FocusMinecraftCore --version 0.1.0-preview.2`；包引用验收与手册示例同步更新。
+- 保留 `v0.1.0-preview.1` Tag，不覆盖已公开历史；新版本使用独立 Tag 和发行产物。
+- 本版本沿用已验收的 P0 能力，实际公开发布结果见[发布报告](docs/validation/t065-release.md)。
+
+## 0.1.0-preview.1 — 候选版本，未发布 NuGet
+
+GitHub 已推送该 Tag；NuGet 认证成功，但上传被服务端以包名近似冲突拒绝（HTTP 400），因此不存在该版本的 FMCore NuGet 发布。后续按用户决定使用新包名与 `0.1.0-preview.2`，不重复上传失败候选或覆盖 Tag。
 
 ### 新增
 

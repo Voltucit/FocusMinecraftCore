@@ -42,11 +42,11 @@
 
 FMCore 采用阶段性版本发布策略，所有版本如实标明支持的功能、游戏版本、平台及已知限制。
 
-1. T06 完成后，准备首个 NuGet 预览版 `0.1.0-preview.1`。
+1. T06 完成后准备首个预览版。`0.1.0-preview.1` 已推送 GitHub Tag，但 NuGet 因包名近似冲突拒绝上传；用户决定更换 PackageId，首个 NuGet 目标版本调整为 `0.1.0-preview.2`，已有 Tag 不覆盖。
 2. P1 完成后发布 `0.5.0-preview.1`。
 3. P2 完成后发布 `0.9.0-beta.1`。
 4. 完成全部测试、文档和兼容性验收后发布 `1.0.0`。
-5. NuGet `PackageId` 统一使用 `FMCore`。
+5. NuGet `PackageId` 统一使用用户确认的 `FocusMinecraftCore`；GitHub 仓库、程序集与 C# 命名空间保持 `FMCore`。安装命令使用包名，代码示例仍使用 `FMCore.*`，不得混淆两者。
 6. 配置准确的 NuGet 元数据、XML 文档、SourceLink、README 和许可证信息；仓库地址、作者和许可证以实际确认的信息为准，不虚构或借用其他项目的信息。
 7. 确保第三方开发者可以直接引用 NuGet 包使用公开 API，发布验收须通过独立调用方实际验证包引用，不能只验证项目引用。
 8. 使用 GitHub Actions 自动构建、测试和生成 NuGet 包；自动生成构建产物不等于已授权公开发布。

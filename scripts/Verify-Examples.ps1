@@ -7,7 +7,9 @@ $root = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
 $PackageDirectory = [IO.Path]::GetFullPath($PackageDirectory)
 $WorkDirectory = Join-Path ([IO.Path]::GetFullPath($WorkDirectory)) ([Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $WorkDirectory -Force | Out-Null
-$version = ([xml](Get-Content -LiteralPath (Join-Path $root 'FMCore/FMCore.csproj') -Raw)).Project.PropertyGroup.Version
+$project = [xml](Get-Content -LiteralPath (Join-Path $root 'FMCore/FMCore.csproj') -Raw)
+$version = $project.Project.PropertyGroup.Version
+$packageId = [Security.SecurityElement]::Escape([string]$project.Project.PropertyGroup.PackageId)
 $escapedSource = [Security.SecurityElement]::Escape($PackageDirectory)
 @"
 <configuration><packageSources><clear />
@@ -53,7 +55,7 @@ foreach ($document in $documents) {
     <!-- 只声明用于接入的局部示例函数，无需为了编译而执行下载/认证。 -->
     <NoWarn>CS8321</NoWarn>
   </PropertyGroup>
-  <ItemGroup><PackageReference Include="FMCore" Version="$version" /></ItemGroup>
+  <ItemGroup><PackageReference Include="$packageId" Version="[$version]" /></ItemGroup>
 </Project>
 "@ | Set-Content -LiteralPath (Join-Path $folder 'Example.csproj') -Encoding utf8
         $exampleProject = Join-Path $folder 'Example.csproj'
@@ -64,4 +66,4 @@ foreach ($document in $documents) {
         Write-Output "Compiled: $document block $blockIndex"
     }
 }
-Write-Output "Compiled $count C# examples against FMCore $version using only PackageReference. Examples were not executed."
+Write-Output "Compiled $count C# examples against $packageId $version using only PackageReference. Examples were not executed."

@@ -1,8 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <Description>FMCore：面向 .NET 启动器开发者的 Minecraft Java 版启动核心，提供下载、版本、Java、安装、账号与启动 API。</Description>
-    <PackageId>FMCore</PackageId>
-    <Version>0.1.0-preview.1</Version>
+    <PackageId>FocusMinecraftCore</PackageId>
+    <Version>0.1.0-preview.2</Version>
+    <Title>FMCore</Title>
     <Authors>Voltucit</Authors>
     <Copyright>Copyright (c) 2026 Voltucit</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>

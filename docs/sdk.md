@@ -1,6 +1,6 @@
 # P0 开发者 API 清单
 
-目标 .NET 10 / C# 14。首个版本为 `FMCore 0.1.0-preview.1`，公开发布状态见[发布报告](validation/t065-release.md)。发布后执行 `dotnet add package FMCore --version 0.1.0-preview.1`；发布前使用[本地 NuGet 源](releasing.md)验证。源码开发也可引用 `FMCore/FMCore.csproj`。项目只包含一个业务核心类库，不依赖 WPF/Avalonia/WinUI，不强制 DI。包包含 `FMCore.xml`，新增入口及主要操作带 XML API 提示，存量模型成员的 XML 说明逐步补充。
+目标 .NET 10 / C# 14。NuGet 包名为 `FocusMinecraftCore`，首个 NuGet 目标版本 `0.1.0-preview.2`，公开发布状态见[发布报告](validation/t065-release.md)。发布后执行 `dotnet add package FocusMinecraftCore --version 0.1.0-preview.2`；发布前使用[本地 NuGet 源](releasing.md)验证。程序集仍为 `FMCore.dll`，代码使用 `FMCore.*` 命名空间；源码开发也可引用 `FMCore/FMCore.csproj`。项目只包含一个业务核心类库，不依赖 WPF/Avalonia/WinUI，不强制 DI。包包含 `FMCore.xml`，新增入口及主要操作带 XML API 提示，存量模型成员的 XML 说明逐步补充。
 
 ## 入口与兼容性
 

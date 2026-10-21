@@ -1,6 +1,6 @@
 # 发布与后续更新
 
-目标仓库：`https://github.com/Voltucit/FMCore`；PackageId：`FMCore`；首次目标版本：`0.1.0-preview.1`。公开仓库、Tag、Release 和 NuGet 包是否实际存在，见[首次发布检查报告](validation/t065-release.md)。配置或本地打包成功不代表已公开发布。
+仓库：`https://github.com/Voltucit/FMCore`；PackageId：`FocusMinecraftCore`；首个 NuGet 目标版本：`0.1.0-preview.2`。程序集与命名空间保持 `FMCore`，代码仍使用 `FMCore.*`。实际 Tag、Release 和 NuGet 状态见[发布报告](validation/t065-release.md)。配置或本地打包成功不代表已公开发布。
 
 ## 本地构建和验收
 
@@ -22,7 +22,7 @@ dotnet pack FMCore/FMCore.csproj -c Release --no-build -o artifacts/packages
 在其他开发者项目引用本地产物：
 
 ```powershell
-dotnet add package FMCore --version 0.1.0-preview.1 --source E:/rider/project/FMCore/artifacts/packages
+dotnet add package FocusMinecraftCore --version 0.1.0-preview.2 --source E:/rider/project/FMCore/artifacts/packages
 dotnet restore --source E:/rider/project/FMCore/artifacts/packages --source https://api.nuget.org/v3/index.json
 ```
 
@@ -40,7 +40,7 @@ dotnet restore --source E:/rider/project/FMCore/artifacts/packages --source http
 
 首次公开创建 `Voltucit/FMCore`、上传源码、Tag、Release、NuGet 之前，必须向用户展示检查报告并获得明确确认。不得更改已有仓库可见性、覆盖远程历史、强推或删除资源。
 
-确认后，新建目标仓库，上传通过检查的提交，设置 `origin` 为该仓库，创建并推送 `v0.1.0-preview.1`。NuGet 用户名为 `Voltucit`，账号及邮箱验证由用户完成；公开用户名存在不等于已获得包发布权限。
+仓库已在用户确认后创建；`origin` 指向该仓库。原 `v0.1.0-preview.1` 候选因 NuGet 包名近似冲突未能上传，Tag 保留。用户随后决定将包名改为 `FocusMinecraftCore`，使用新版本 `0.1.0-preview.2`，不移动原 Tag。NuGet 用户名为 `Voltucit`，账号及邮箱验证由用户完成；公开用户名存在不等于已获得包发布权限。
 
 在 NuGet.org 的 **Trusted Publishing** 添加策略：
 
@@ -50,7 +50,7 @@ dotnet restore --source E:/rider/project/FMCore/artifacts/packages --source http
 | Repository | `FMCore` |
 | Workflow File | `release.yml`，不带目录 |
 | Environment | `nuget` |
-| 包模式 | `FMCore`，限制到该包 |
+| 包模式 | `FocusMinecraftCore`，限制到该包；输入后确认已加入规则列表 |
 | 允许操作 | 首次创建包、发布新版本；按页面实际可选权限设置 |
 
 将策略绑定到实际拥有包的用户/组织。首次命名仍可能受名称保留和服务端权限约束，404 只能说明未查询到公开版本。策略生效与首次认证应单独核实，不能通过试传相同版本测试权限。
@@ -61,7 +61,7 @@ dotnet restore --source E:/rider/project/FMCore/artifacts/packages --source http
 
 1. 更新 `FMCore.csproj` 版本和中文 CHANGELOG、README、相关手册/示例；重新完成全部检查。
 2. 确认公开发布，再推送该提交及对应 `v<版本>` Tag。不要移动或覆盖已发布 Tag。
-3. GitHub Actions → **手动公开发布** → Run workflow，选择 `main`，版本填写 `0.1.0-preview.1`，确认文本填写 `publish FMCore 0.1.0-preview.1`。
+3. GitHub Actions → **手动公开发布** → Run workflow，选择 `main`，版本填写 `0.1.0-preview.2`，确认文本填写 `publish FocusMinecraftCore 0.1.0-preview.2`。
 4. `prepare` 从指定 Tag 构建、测试、打包、独立包验收并保存产物；`nuget` 经环境审批后，通过 `NuGet/login` 交换 OIDC 短期凭据。只推 `.nupkg`，相邻 `.snupkg` 由 NuGet 客户端一起上传。
 5. NuGet 步骤成功后创建 GitHub Release，附加同一批包和中文更新日志。任一步失败都以 Actions 实际状态为准，不声称整体成功。
 6. 公开后检查包页面、预览版搜索、指定版本安装/引用和 SourceLink 源文件读取；NuGet 收录/搜索索引可能延迟，应分别记录上传与索引状态。
@@ -72,6 +72,6 @@ dotnet restore --source E:/rider/project/FMCore/artifacts/packages --source http
 
 ## 版本策略和文档验收
 
-T06：`0.1.0-preview.1`；P1：`0.5.0-preview.1`；P2：`0.9.0-beta.1`；全部功能、文档和兼容性验收后：`1.0.0`。每次功能或公开 API 变更同步更新 README、六模块相关手册、真实示例和 CHANGELOG。文档未同步不得标记为发布就绪。
+T06 首个 NuGet 版本按本次包名调整改为 `0.1.0-preview.2`；P1：`0.5.0-preview.1`；P2：`0.9.0-beta.1`；全部功能、文档和兼容性验收后：`1.0.0`。每次功能或公开 API 变更同步更新 README、六模块相关手册、真实示例和 CHANGELOG。文档未同步不得标记为发布就绪。
 
 来源：[NuGet Trusted Publishing](https://learn.microsoft.com/en-us/nuget/nuget-org/trusted-publishing)、[NuGet 符号包](https://learn.microsoft.com/en-us/nuget/create-packages/symbol-packages-snupkg)、[SDK 内置 SourceLink](https://learn.microsoft.com/en-us/dotnet/core/compatibility/sdk/8.0/source-link)。

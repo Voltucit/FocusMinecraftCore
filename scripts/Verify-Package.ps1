@@ -7,12 +7,14 @@ $PackageDirectory = [IO.Path]::GetFullPath($PackageDirectory)
 $WorkDirectory = [IO.Path]::GetFullPath($WorkDirectory)
 $project = [xml](Get-Content -LiteralPath (Join-Path $PSScriptRoot '../FMCore/FMCore.csproj') -Raw)
 $version = [string]$project.Project.PropertyGroup.Version
-$package = Join-Path $PackageDirectory "FMCore.$version.nupkg"
+$packageId = [string]$project.Project.PropertyGroup.PackageId
+$package = Join-Path $PackageDirectory "$packageId.$version.nupkg"
 if (!(Test-Path -LiteralPath $package)) { throw "Package not found: $package" }
 # 新建独立目录，隔离包缓存，不接受项目引用或已有 FMCore 缓存冒充包验证。
 $consumer = Join-Path $WorkDirectory ([Guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $consumer -Force | Out-Null
 $escapedVersion = [System.Security.SecurityElement]::Escape($version)
+$escapedPackageId = [System.Security.SecurityElement]::Escape($packageId)
 @"
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
@@ -21,7 +23,7 @@ $escapedVersion = [System.Security.SecurityElement]::Escape($version)
     <ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
-  <ItemGroup><PackageReference Include="FMCore" Version="$escapedVersion" /></ItemGroup>
+  <ItemGroup><PackageReference Include="$escapedPackageId" Version="[$escapedVersion]" /></ItemGroup>
 </Project>
 "@ | Set-Content -LiteralPath (Join-Path $consumer 'PackageConsumer.csproj') -Encoding utf8
 Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'PackageSmoke.cs') -Destination (Join-Path $consumer 'Program.cs')
