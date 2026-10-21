@@ -1,12 +1,18 @@
 # 项目结构与模块职责
 
-## 三项目布局
+## 公开仓库与本地开发
 
-| 项目 | 职责 | 项目引用 |
+公开仓库的 `FMCore.slnx` 仅引用 `FMCore/FMCore.csproj`，保留核心源码、必要工程配置、GitHub Actions、中文手册与许可证。全新克隆不需要 CLI、测试、内部报告或验收脚本即可还原、构建和打包。
+
+维护者本地使用不纳入 Git 的 `FMCore.Local.slnx`，保留完整三项目布局：
+
+| 本地项目 | 职责 | 项目引用 |
 | --- | --- | --- |
-| FMCore | 核心 SDK，承载全部业务能力 | 无其他内部项目依赖 |
-| FMCore.Cli | 命令行交互与开发调试入口 | FMCore |
-| FMCore.Tests | 单元、集成和安全测试 | FMCore |
+| FMCore | 核心 SDK，唯一业务类库，也是公开方案的唯一项目 | 无其他内部项目依赖 |
+| FMCore.Cli | 本地命令行交互与开发调试入口 | FMCore |
+| FMCore.Tests | 本地单元、集成和安全测试 | FMCore |
+
+本地测试依赖版本由 `FMCore.Tests/Directory.Packages.props` 管理，并导入根级核心依赖配置；公开的根级文件仅列出核心需要的依赖。核心的测试友元声明只用于本地测试访问，不构成项目引用。
 
 核心不依赖 CLI、测试或任何 GUI 框架。`FmCore` 作为未来统一入口，业务实现仍放在各模块中，避免入口类承担全部逻辑。
 
@@ -59,7 +65,9 @@ Installer 负责安装流程编排，复用 Versions、Assets 和 Downloader；L
 
 内存、分辨率、服务器和 JVM 参数归入实例配置，由 Launch 应用；不另设通用“高级设置”项目。SDK 是 FMCore 本身，异步任务、取消、进度、事件和错误码随业务 API 实现，不增加额外框架层。
 
-## 测试目录
+## 本地测试目录（不公开）
+
+以下目录保留在维护者本地的 `FMCore.Tests/` 中，公开仓库和 GitHub Actions 不依赖它们。
 
 - Unit：无需外部服务的解析、规则和参数构建测试。
 - Integration：模块协作、文件系统和外部服务集成测试；联网测试明确标记。

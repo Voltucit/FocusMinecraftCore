@@ -24,3 +24,11 @@ accounts.json
 accounts.lock
 **/tokens/*.dat
 **/tokens/.fmcore-*.tmp
+
+# Local development only; keep actual files on the maintainer's computer
+/AGENTS.md
+/FMCore.Cli/
+/FMCore.Tests/
+/FMCore.Local.slnx
+/docs/validation/
+/scripts/

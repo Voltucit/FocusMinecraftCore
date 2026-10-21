@@ -1,8 +1,0 @@
-Property settings:
-    java.home = /fixture/jdk8/jre
-    java.vendor = Amazon.com Inc.
-    java.version = 1.8.0_482
-    os.arch = amd64
-    sun.arch.data.model = 64
-openjdk version "1.8.0_482"
-OpenJDK 64-Bit Server VM (build 25.482-b08, mixed mode)

@@ -104,6 +104,6 @@ Windows / .NET 10 下新增 64 项离线测试，全套 268 项通过、无跳�
 
 2026-10-21 实际验证正式版 **1.16.5 / Windows x64**，使用 Java 8u482 的平台上下文，通过 SDK 下载并独立检查 2,640 个文件的官方 SHA-1/大小，合计 **401,773,932 字节**；含 41 个依赖文件、1 个客户端、1 个索引、2,596 个去重资源对象（2,615 个逻辑资源名）及 1 个日志配置。8 个原生压缩包解压得到 38 个文件，并逐一与包内内容比较 SHA-256。安装失败后的完整下载文件在续装中复用；完成后再运行一次，下载数 0、跳过数 2,640、HTTP 请求数 0。
 
-验证目录位于项目 `artifacts/installation-validation/1.16.5`，不进入仓库；脱敏统计保存在[验证记录](validation/t04-1.16.5.json)。没有下载 Java，没有启动 Minecraft，也没有验证认证、加载器、Linux/macOS 或其他架构的实际安装与运行。
+验证目录与脱敏统计保留在维护者本地，不随公开仓库分发。没有下载 Java，没有启动 Minecraft，也没有验证认证、加载器、Linux/macOS 或其他架构的实际安装与运行。
 
-资料：[Mojang 版本清单](https://piston-meta.mojang.com/mc/game/version_manifest_v2.json)、[官方 Fixtures 来源与 SHA-1](../FMCore.Tests/Fixtures/Installer/README.md)、[Mojang LegacyLauncher 的资源目录使用](https://github.com/Mojang/LegacyLauncher/blob/master/src/main/java/net/minecraft/launchwrapper/injector/VanillaTweakInjector.java)、[.NET ZIP/TAR 安全说明](https://learn.microsoft.com/en-us/dotnet/standard/io/zip-tar-best-practices)。
+资料：[Mojang 版本清单](https://piston-meta.mojang.com/mc/game/version_manifest_v2.json)、[Mojang LegacyLauncher 的资源目录使用](https://github.com/Mojang/LegacyLauncher/blob/master/src/main/java/net/minecraft/launchwrapper/injector/VanillaTweakInjector.java)、[.NET ZIP/TAR 安全说明](https://learn.microsoft.com/en-us/dotnet/standard/io/zip-tar-best-practices)。

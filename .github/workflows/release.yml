@@ -53,14 +53,7 @@ jobs:
           global-json-file: global.json
       - run: dotnet restore FMCore.slnx
       - run: dotnet build FMCore.slnx -c Release --no-restore
-      - run: dotnet test FMCore.slnx -c Release --no-build
       - run: dotnet pack FMCore/FMCore.csproj -c Release --no-build -o artifacts/packages
-      - name: 独立包验证
-        shell: pwsh
-        run: ./scripts/Verify-Package.ps1
-      - name: 文档示例验收
-        shell: pwsh
-        run: ./scripts/Verify-Examples.ps1
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
           name: FMCore-release-packages

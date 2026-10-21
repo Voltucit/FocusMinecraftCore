@@ -1,19 +1,33 @@
 # 发布与后续更新
 
-仓库：`https://github.com/Voltucit/FMCore`；PackageId：`FocusMinecraftCore`；首个已发布 NuGet 版本：`0.1.0-preview.2`。程序集与命名空间保持 `FMCore`，代码仍使用 `FMCore.*`。该版本已完成官方源安装及搜索验收，见[发布报告](validation/t065-release.md)。后续版本仍需逐项检查，不以本次成功替代新的发布验收。
+仓库：`https://github.com/Voltucit/FMCore`；PackageId：`FocusMinecraftCore`；首个已发布 NuGet 版本：`0.1.0-preview.2`。程序集与命名空间保持 `FMCore`，代码仍使用 `FMCore.*`。该版本已完成官方源安装及搜索验收，详细内部记录保留在维护者本地。后续版本仍需逐项检查，不以本次成功替代新的发布验收。
 
-## 本地构建和验收
+## 从公开仓库构建
 
-在项目根目录使用 `global.json` 指定的 .NET 10 SDK：
+在全新克隆的项目根目录使用 `global.json` 指定的 .NET 10 SDK。`FMCore.slnx` 仅包含核心项目，不需要 CLI、测试或内部脚本：
 
 ```powershell
 dotnet restore FMCore.slnx
 dotnet build FMCore.slnx -c Release --no-restore
-dotnet test FMCore.slnx -c Release --no-build
+dotnet pack FMCore/FMCore.csproj -c Release --no-build -o artifacts/packages
+```
+
+公开的 CI 与发布准备工作流执行上述还原、构建和打包，不运行未公开的本地测试或脚本。包仍使用原有元数据、XML 文档、SDK 内置 SourceLink 和符号包配置。
+
+## 维护者本地完整验收
+
+以下文件仅保留在维护者原有开发目录，不随公开克隆提供，也不是核心构建的前置依赖。使用 `FMCore.Local.slnx` 在 Rider 打开完整三项目方案：
+
+```powershell
+dotnet restore FMCore.Local.slnx
+dotnet build FMCore.Local.slnx -c Release --no-restore
+dotnet test FMCore.Local.slnx -c Release --no-build
 dotnet pack FMCore/FMCore.csproj -c Release --no-build -o artifacts/packages
 ./scripts/Verify-Package.ps1
 ./scripts/Verify-Examples.ps1
 ```
+
+`AGENTS.md`、CLI、测试、`FMCore.Local.slnx`、内部验收记录和 `scripts/` 均由 `.gitignore` 排除。仅取消跟踪，实际文件继续保留；测试专用包版本位于本地测试目录。后续仅提交必要核心源码、工程配置和对应中文文档，临时产物放在已忽略的目录。
 
 `Verify-Package.ps1` 在忽略的 `artifacts/package-validation` 新建独立 .NET 10 调用方，只使用 `PackageReference`，隔离包缓存，从本地产物源及 NuGet.org 还原。验证六模块的公开 API、哈希、版本、本地离线账号、严格 Java 选择、模拟安装/零下载修复，以及启动失败和取消。它不使用测试友元，不会启动真实游戏或完成真实 Microsoft 登录。独立项目为临时验收产物，不加入三项目方案。
 
@@ -26,7 +40,7 @@ dotnet add package FocusMinecraftCore --version 0.1.0-preview.2 --source E:/ride
 dotnet restore --source E:/rider/project/FMCore/artifacts/packages --source https://api.nuget.org/v3/index.json
 ```
 
-本地源用于首次验收；正式公开后使用 README 中的 NuGet.org 安装命令。Windows 终端如执行策略限制脚本，可使用受信任的 PowerShell 会话运行，避免全局修改执行策略。
+本地源用于新版本发布前验收；已公开的版本使用 README 中的 NuGet.org 安装命令。Windows 终端如执行策略限制脚本，可使用受信任的 PowerShell 会话运行，避免全局修改执行策略。
 
 正式发行以对应 Tag 工作流的产物为准。主分支的普通 CI 包是构建快照；文档更新后的主分支可以生成不同提交信息的包，不能因此覆盖或重新上传已经发布的同一版本。`0.1.0-preview.2` 绑定 `v0.1.0-preview.2` 对应的 `475721a` 提交。
 
@@ -63,8 +77,8 @@ dotnet restore --source E:/rider/project/FMCore/artifacts/packages --source http
 
 1. 更新 `FMCore.csproj` 版本和中文 CHANGELOG、README、相关手册/示例；重新完成全部检查。
 2. 确认公开发布，再推送该提交及对应 `v<版本>` Tag。不要移动或覆盖已发布 Tag。
-3. GitHub Actions → **手动公开发布** → Run workflow，选择 `main`，版本填写 `0.1.0-preview.2`，确认文本填写 `publish FocusMinecraftCore 0.1.0-preview.2`。
-4. `prepare` 从指定 Tag 构建、测试、打包、独立包验收并保存产物；`nuget` 经环境审批后，通过 `NuGet/login` 交换 OIDC 短期凭据。只推 `.nupkg`，相邻 `.snupkg` 由 NuGet 客户端一起上传。
+3. GitHub Actions → **手动公开发布** → Run workflow，选择 `main`，版本填写本次尚未发布的新版本，确认文本填写 `publish FocusMinecraftCore <新版本>`，将占位部分替换为同一版本号。`0.1.0-preview.2` 已发布，不得再次上传。
+4. `prepare` 从指定 Tag 还原、构建核心、打包并保存产物；完整测试、独立包调用及中文示例编译须在推送 Tag 前于本地完成。`nuget` 经环境审批后，通过 `NuGet/login` 交换 OIDC 短期凭据。只推 `.nupkg`，相邻 `.snupkg` 由 NuGet 客户端一起上传。
 5. NuGet 步骤成功后创建 GitHub Release，附加同一批包和中文更新日志。任一步失败都以 Actions 实际状态为准，不声称整体成功。
 6. 公开后检查包页面、预览版搜索、指定版本安装/引用和 SourceLink 源文件读取；NuGet 收录/搜索索引可能延迟，应分别记录上传与索引状态。
 

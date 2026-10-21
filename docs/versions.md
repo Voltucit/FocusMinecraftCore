@@ -123,4 +123,4 @@ Windows / .NET 10 下 139 项测试通过，无失败或跳过，其中 T02 原�
 
 2026-10-21 另外通过实际 SDK 访问官方服务，取得当时 920 条版本记录，解析 `1.21.1` 与 `26.4-snapshot-5` 的元数据，并在禁止联网的客户端下解析缓存及 Fabric 继承。此结果只证明元数据流程，不代表加载器安装、游戏安装或游戏启动通过验证；其他操作系统尚未实际验证。
 
-样本来源与校验和见 [Fixtures 说明](../FMCore.Tests/Fixtures/Versions/README.md)。官方接口：[Mojang 版本列表](https://piston-meta.mojang.com/mc/game/version_manifest_v2.json)、[Fabric 元数据说明](https://github.com/FabricMC/fabric-meta/blob/master/README.md)。
+脱敏测试样本及其来源、校验和保留在维护者本地，不随公开仓库分发。官方接口：[Mojang 版本列表](https://piston-meta.mojang.com/mc/game/version_manifest_v2.json)、[Fabric 元数据说明](https://github.com/FabricMC/fabric-meta/blob/master/README.md)。

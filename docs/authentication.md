@@ -2,7 +2,7 @@
 
 `FMCore.Authentication.AccountManager` 统一管理 Microsoft 正版与离线账号，面向 WPF、Avalonia、WinUI 等宿主。无需新增项目、GUI 依赖或认证框架。所有 I/O 操作异步，支持 `CancellationToken`。
 
-T05 阶段通过模拟认证和本地测试。T06 已使用调用方提供的 Client ID 和交互式 Microsoft 授权，真实验证登录、游戏资格/玩家资料、刷新及 Windows x64 下 1.16.5 正版启动；未验证多人服务器联机。详见 [验收记录](validation/t06-p0.json)。
+T05 阶段通过模拟认证和本地测试。T06 已使用调用方提供的 Client ID 和交互式 Microsoft 授权，真实验证登录、游戏资格/玩家资料、刷新及 Windows x64 下 1.16.5 正版启动；未验证多人服务器联机。此处为历史实机验收范围，详细记录保留在维护者本地。
 
 ## 公开接口
 

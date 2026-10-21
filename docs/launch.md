@@ -172,6 +172,6 @@ SDK 不公开原始 `Process`、`ProcessStartInfo` 或完整参数字符串。�
 
 此过滤覆盖 **FMCore 转发的日志事件**，不能控制游戏、Mod、JVM、系统诊断工具自行写入的文件或系统进程参数可见性。宿主应保护日志收集与诊断导出，不自行记录凭据、原始进程参数或内存转储；旧版游戏协议本身要求访问令牌传入进程。正版刷新/资格检查失败只会报错，不自动切换离线。
 
-验收：Windows / .NET 10 自动化测试 402 项通过；真实游戏版本仅 **1.16.5**，Java **1.8.0_482 x64**。正版与离线均由外部调用方仅通过公开 SDK 启动，观察到窗口、OpenAL 和纹理图集初始化后自动停止，未进入世界或测试多人服务器。Linux/macOS 路径与规则通过模拟/参数测试，未做对应实机启动。详见 [验收记录](validation/t06-p0.json)和 [P0 API 清单](sdk.md)。
+验收：Windows / .NET 10 自动化测试 402 项通过；真实游戏版本仅 **1.16.5**，Java **1.8.0_482 x64**。正版与离线均由外部调用方仅通过公开 SDK 启动，观察到窗口、OpenAL 和纹理图集初始化后自动停止，未进入世界或测试多人服务器。Linux/macOS 路径与规则通过模拟/参数测试，未做对应实机启动。公开入口与用法见 [P0 API 清单](sdk.md)，详细实机记录保留在维护者本地。
 
 实现依据：[.NET ArgumentList](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.processstartinfo.argumentlist?view=net-10.0)、[并行读取进程输出](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.process.standardoutput?view=net-10.0)、[等待退出](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.process.waitforexitasync?view=net-10.0)、[停止进程树](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.process.kill?view=net-10.0)、[Java 启动命令](https://docs.oracle.com/en/java/javase/21/docs/specs/man/java.html)；参数结构来自已归档的官方版本 JSON Fixtures。

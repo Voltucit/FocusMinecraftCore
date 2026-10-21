@@ -1,6 +1,6 @@
 # P0 开发者 API 清单
 
-目标 .NET 10 / C# 14。NuGet 包名为 `FocusMinecraftCore`，首个已发布版本 `0.1.0-preview.2`，实际验收见[发布报告](validation/t065-release.md)。执行 `dotnet add package FocusMinecraftCore --version 0.1.0-preview.2` 即可安装；源码开发可使用[本地 NuGet 源](releasing.md)或引用 `FMCore/FMCore.csproj`。程序集仍为 `FMCore.dll`，代码使用 `FMCore.*` 命名空间。项目只包含一个业务核心类库，不依赖 WPF/Avalonia/WinUI，不强制 DI。包包含 `FMCore.xml`，新增入口及主要操作带 XML API 提示，存量模型成员的 XML 说明逐步补充。
+目标 .NET 10 / C# 14。NuGet 包名为 `FocusMinecraftCore`，首个已发布版本 `0.1.0-preview.2`。执行 `dotnet add package FocusMinecraftCore --version 0.1.0-preview.2` 即可安装；源码开发可使用[本地 NuGet 源](releasing.md)或引用 `FMCore/FMCore.csproj`。程序集仍为 `FMCore.dll`，代码使用 `FMCore.*` 命名空间。项目只包含一个业务核心类库，不依赖 WPF/Avalonia/WinUI，不强制 DI。包包含 `FMCore.xml`，新增入口及主要操作带 XML API 提示，存量模型成员的 XML 说明逐步补充。
 
 ## 入口与兼容性
 
@@ -97,6 +97,6 @@ var identity = await accounts.GetLaunchIdentityAsync(cancellationToken: ct);
 
 T06 Windows 自动化 **402 项通过**（新增 57 项）。真实子进程测试覆盖双路大量输出、退出码、停止及子进程树、取消准备、等待取消、实例并行/互斥、原生清理和日志过滤；协议/文件测试明确使用 Mock。
 
-另外在仓库外建立仅引用 FMCore 的调用方程序，未使用测试友元或内部 API：真实本机 HTTP 完成单/批量 3 次下载及 SHA-256 校验；真实枚举本地版本、Java 探测与选择、校验 2,640 个原版文件、修复复用 2,640 个文件且零下载；验证离线账号创建/切换/默认/刷新/删除。通过真实 Microsoft 授权与刷新，分别用正版和离线账号启动 1.16.5 并观察窗口/音频/纹理初始化。记录见 [T06 JSON](validation/t06-p0.json)。
+另外在仓库外建立仅引用 FMCore 的调用方程序，未使用测试友元或内部 API：真实本机 HTTP 完成单/批量 3 次下载及 SHA-256 校验；真实枚举本地版本、Java 探测与选择、校验 2,640 个原版文件、修复复用 2,640 个文件且零下载；验证离线账号创建/切换/默认/刷新/删除。通过真实 Microsoft 授权与刷新，分别用正版和离线账号启动 1.16.5 并观察窗口/音频/纹理初始化。这是 T06 的历史实机验证范围，详细记录保留在维护者本地。
 
-最简、高级完整示例从文档提取并独立编译；局部代码片段中的 `ct`、`accountDirectory` 由调用方提供。T06.5 新增独立 NuGet 包引用验收，具体结果见[发布报告](validation/t065-release.md)。未实际验证 Linux/macOS、其他游戏版本、加载器、世界或多人服务器。CLI 当前仍只有帮助/版本命令，SDK 功能完整性不表示 CLI 命令已实现。
+最简、高级完整示例从文档提取并独立编译；局部代码片段中的 `ct`、`accountDirectory` 由调用方提供。首版发布前另通过独立 NuGet 包引用验收和 14 段 C# 示例编译；内部测试和验收脚本不随公开仓库分发。未实际验证 Linux/macOS、其他游戏版本、加载器、世界或多人服务器。源码构建和后续发布流程见[发布与更新手册](releasing.md)。

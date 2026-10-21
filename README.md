@@ -2,7 +2,7 @@
 
 使用 **.NET 10 / C# 14** 开发的 Minecraft Java 版启动核心。一个核心类库即可接入 WPF、Avalonia、WinUI 或控制台应用，核心不依赖 GUI 框架，不强制使用依赖注入。
 
-当前已实现 **T01–T06 / P0**，已发布 [**FocusMinecraftCore 0.1.0-preview.2**](https://www.nuget.org/packages/FocusMinecraftCore/0.1.0-preview.2)。GitHub 仓库、程序集与代码命名空间仍为 `FMCore`。[GitHub Release](https://github.com/Voltucit/FMCore/releases/tag/v0.1.0-preview.2)提供核心包、符号包及中文更新日志，实际验收见[发布报告](https://github.com/Voltucit/FMCore/blob/main/docs/validation/t065-release.md)。
+当前已实现 **T01–T06 / P0**，已发布 [**FocusMinecraftCore 0.1.0-preview.2**](https://www.nuget.org/packages/FocusMinecraftCore/0.1.0-preview.2)。GitHub 仓库、程序集与代码命名空间仍为 `FMCore`。[GitHub Release](https://github.com/Voltucit/FMCore/releases/tag/v0.1.0-preview.2)提供核心包、符号包及中文更新日志。
 
 ## 安装
 
@@ -54,7 +54,7 @@ else
 
 异步 I/O 支持 `CancellationToken`，耗时任务提供进度或事件，业务失败具有结构化错误码。单次启动成功只表示进程建立，游戏状态仍需结合日志和退出事件判断。完整签名、返回值和异常见[P0 SDK 清单](https://github.com/Voltucit/FMCore/blob/main/docs/sdk.md)及各模块手册。
 
-下载复用已完成且校验有效的文件，中断后的未完成文件重新尝试，暂不支持 HTTP Range 断点续传。尚未实现加载器安装、完整实例管理、Mod/整合包管理或 Java 自动下载；CLI 当前仅提供帮助和版本信息。
+下载复用已完成且校验有效的文件，中断后的未完成文件重新尝试，暂不支持 HTTP Range 断点续传。尚未实现加载器安装、完整实例管理、Mod/整合包管理或 Java 自动下载。
 
 ## 兼容性与验证
 
@@ -66,20 +66,19 @@ else
 | 其他版本 | 版本/规则 Fixtures 与元数据验证，不代表实际安装或启动通过 |
 | Linux / macOS | 路径和规则模拟测试；尚未实机启动，正版令牌存储需宿主提供安全实现 |
 
-Windows 自动化测试 **402 项通过**，使用 Fixtures、模拟认证、本机 HTTP、测试子进程和 DPAPI。独立 NuGet 包调用与中文示例编译的本次结果见[发布报告](https://github.com/Voltucit/FMCore/blob/main/docs/validation/t065-release.md)，与[T06 真实游戏记录](https://github.com/Voltucit/FMCore/blob/main/docs/validation/t06-p0.json)分别记载，不将模拟认证视为真实登录。
+首版发布前，Windows 自动化测试 **402 项通过**，并完成独立 NuGet 包调用与 **14 段 C# 示例**编译。自动化测试使用 Fixtures、模拟认证、本机 HTTP、测试子进程和 DPAPI；真实游戏验证范围以上表为准。内部测试与详细报告保留在维护者本地，不随公开源码分发。
 
 ## 源码开发
 
-保持 `FMCore`、`FMCore.Tests`、`FMCore.Cli` 三项目结构，业务按功能文件夹分类。安装 `global.json` 指定的 .NET 10 SDK，以 `FMCore.slnx` 打开方案，执行：
+公开仓库包含 `FMCore/` 核心源码、必要工程配置和中文开发者文档，业务按功能文件夹分类。安装 `global.json` 指定的 .NET 10 SDK，以只引用核心项目的 `FMCore.slnx` 打开方案，全新克隆后即可执行：
 
 ```shell
 dotnet restore FMCore.slnx
 dotnet build FMCore.slnx -c Release --no-restore
-dotnet test FMCore.slnx -c Release --no-build
 dotnet pack FMCore/FMCore.csproj -c Release --no-build -o artifacts/packages
 ```
 
-GitHub Actions 配置自动构建、测试、打包与独立包/示例检查；公开发布只由维护者手动确认触发，实际远程执行状态以 Actions 为准。后续每次功能或公开 API 变更，同步维护 README、相关中文使用手册、示例与 CHANGELOG。
+GitHub Actions 自动构建核心并生成 `.nupkg` / `.snupkg`；公开发布只由维护者手动确认触发。CLI、测试、内部报告与验收脚本不随公开仓库分发，工作流不依赖这些文件；维护者使用本地 `FMCore.Local.slnx` 保留完整开发与测试能力，详见[发布与更新手册](https://github.com/Voltucit/FMCore/blob/main/docs/releasing.md)。后续每次功能或公开 API 变更，同步维护 README、相关中文使用手册、示例与 CHANGELOG。
 
 ## 文档与许可证
 

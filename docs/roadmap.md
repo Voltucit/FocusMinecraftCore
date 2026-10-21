@@ -12,7 +12,7 @@ T04 已完成客户端、Libraries、资源索引/对象、原生依赖及日志
 
 T05 已实现调用方 Client ID 的设备码正版登录、Microsoft → Xbox/XSTS → Minecraft 资格与资料认证链、刷新令牌轮换、离线 UUID、多账号保存/切换/删除/默认设置及统一启动身份。新增 77 项测试，当时全套 345 项通过；T05 阶段在线认证为 Mock，本机验证离线账号与 DPAPI。T06 后续已完成真实登录、资格/资料和刷新验证。接口、安全存储契约见 [账号管理](authentication.md)。
 
-T06 已实现 `MinecraftLauncher`、强类型配置、新旧版参数、Classpath/规则/资源/独立 natives、实例锁、进程管理、stdout/stderr 令牌过滤、退出监听与停止。补充 Downloader 默认入口/校验、GameCoreUtil、JavaUtil、Installer 校验/修复和离线便捷登录，原签名保留。新增 57 项测试，全套 **402 项通过**；仅引用 FMCore 的独立调用方另验证全部 P0 入口，真实校验 2,640 个文件、零下载修复，并实际用正版和离线身份启动 1.16.5。未测试世界、联机、其他实机平台、其他版本实际启动或加载器。见 [SDK 清单](sdk.md)、[启动示例](launch.md)及 [验收记录](validation/t06-p0.json)。
+T06 已实现 `MinecraftLauncher`、强类型配置、新旧版参数、Classpath/规则/资源/独立 natives、实例锁、进程管理、stdout/stderr 令牌过滤、退出监听与停止。补充 Downloader 默认入口/校验、GameCoreUtil、JavaUtil、Installer 校验/修复和离线便捷登录，原签名保留。新增 57 项测试，全套 **402 项通过**；仅引用 FMCore 的独立调用方另验证全部 P0 入口，真实校验 2,640 个文件、零下载修复，并实际用正版和离线身份启动 1.16.5。未测试世界、联机、其他实机平台、其他版本实际启动或加载器。见 [SDK 清单](sdk.md)、[启动示例](launch.md)；详细验收记录保留在维护者本地。
 
 ## P0：原版安装与启动闭环
 

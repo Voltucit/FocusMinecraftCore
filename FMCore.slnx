@@ -1,5 +1,3 @@
 <Solution>
   <Project Path="FMCore/FMCore.csproj" />
-  <Project Path="FMCore.Tests/FMCore.Tests.csproj" />
-  <Project Path="FMCore.Cli/FMCore.Cli.csproj" />
 </Solution>
