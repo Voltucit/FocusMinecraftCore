@@ -2,11 +2,12 @@
   <PropertyGroup>
     <Description>FMCore：面向 .NET 10 / Windows 启动器开发者的 Minecraft Java 版 SDK，提供下载、版本、Java Runtime、安装、账号、启动、加载器、Mod 与整合包 API。</Description>
     <PackageId>FocusMinecraftCore</PackageId>
-    <Version>1.0.0</Version>
-    <PackageVersion>1.0.0</PackageVersion>
+    <Version>1.0.1</Version>
+    <PackageVersion>1.0.1</PackageVersion>
+    <PackageIcon>icon.png</PackageIcon>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.0.0</FileVersion>
-    <InformationalVersion>1.0.0</InformationalVersion>
+    <FileVersion>1.0.1.0</FileVersion>
+    <InformationalVersion>1.0.1</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Title>FocusMinecraftCore (FMCore)</Title>
     <Authors>Voltucit</Authors>
@@ -17,7 +18,7 @@
     <RepositoryUrl>https://github.com/Voltucit/FocusMinecraftCore</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>minecraft;launcher;dotnet;sdk</PackageTags>
-    <PackageReleaseNotes>1.0.0 正式版：下载与校验、版本与 Java Runtime、游戏安装、Microsoft/离线账号、启动、实例、加载器、Mod 与整合包管理。兼容性和真实验证范围见 README、CHANGELOG 与模块手册。</PackageReleaseNotes>
+    <PackageReleaseNotes>1.0.1 正式版：下载与校验、版本与 Java Runtime、游戏安装、Microsoft/离线账号、启动、实例、加载器、Mod 与整合包管理。详细见 README、CHANGELOG 与模块手册。</PackageReleaseNotes>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <IncludeSymbols>true</IncludeSymbols>
@@ -36,5 +37,8 @@
     <None Include="../CHANGELOG.md" Pack="true" PackagePath="/" />
     <PackageReference Include="System.Security.Cryptography.ProtectedData" />
     <InternalsVisibleTo Include="FMCore.Tests" />
+    <None Include="../assets/icon.png"
+      Pack="true"
+      PackagePath="/" />
   </ItemGroup>
 </Project>

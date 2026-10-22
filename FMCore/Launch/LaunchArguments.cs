@@ -4,7 +4,6 @@ using System.Text.RegularExpressions;
 using FMCore.Authentication;
 using FMCore.Installer;
 using FMCore.Java;
-using FMCore.Versions;
 
 namespace FMCore.Launch;
 
