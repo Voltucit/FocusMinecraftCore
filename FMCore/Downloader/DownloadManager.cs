@@ -72,7 +72,7 @@ public sealed partial class DownloadManager
 
     private (DownloadRequest Request, string Path) Prepare(DownloadRequest request)
     {
-        if (request == null || request.Source == null || !ValidSource(request.Source) || request.ExpectedSize is < 0)
+        if (request == null || request.Source == null || (request.LocalOnly ? request.ExpectedHash == null : !ValidSource(request.Source)) || request.ExpectedSize is < 0)
             throw Invalid("下载地址或预期大小无效；远程地址必须使用 HTTPS，HTTP 仅限本机回环地址。");
         var length = request.HashAlgorithm switch
         {
@@ -108,6 +108,7 @@ public sealed partial class DownloadManager
                 progress?.Report(new(request.RelativePath, size, size, 0, DownloadState.Skipped));
                 return new(path, size, 0, true);
             }
+            if (request.LocalOnly) throw Failure(DownloadErrorCode.LocalFileUnavailable, "处理器生成文件缺失或损坏，请重新运行对应加载器安装器。", request);
             for (var attempt = 1; ; attempt++)
             {
                 ct.ThrowIfCancellationRequested();

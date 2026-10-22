@@ -27,7 +27,7 @@ jobs:
         run: dotnet pack FMCore/FMCore.csproj -c Release --no-build -o artifacts/packages
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
         with:
-          name: FMCore-preview-packages
+          name: FocusMinecraftCore-build-packages
           path: |
             artifacts/packages/*.nupkg
             artifacts/packages/*.snupkg

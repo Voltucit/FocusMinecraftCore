@@ -12,7 +12,8 @@ public enum DownloadErrorCode
     Timeout,
     HashMismatch,
     SizeMismatch,
-    IoError
+    IoError,
+    LocalFileUnavailable
 }
 
 /// <summary>Sanitized failure information; request URLs and underlying HTTP exceptions are omitted.</summary>

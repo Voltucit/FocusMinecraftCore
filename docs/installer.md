@@ -1,8 +1,22 @@
 # T04：原版游戏安装
 
+本手册对应 1.0.0。每项操作的 using、参数与调用均在独立源码中；编译/运行方式见[示例目录](examples.md)。
+
+## 最简调用
+
+```csharp
+using FMCore.Installer;
+
+var result = await new GameInstaller(".minecraft").InstallAsync("1.16.5");
+Console.WriteLine(result);
+```
+
+
 入口：`FMCore.Installer.GameInstaller`、`FMCore.Assets.AssetManager`、`FMCore.Installer.NativeExtractor`。保留三个项目，无新增第三方依赖。
 
 T06 补充 `new GameInstaller(root)`、默认只读本地缓存的 `VerifyAsync` 和复用安装流程的 `RepairAsync`；原构造和方法签名保留。核验范围、缺索引和未提供哈希时的语义见 [P0 SDK](sdk.md)，与自动启动的衔接见 [Launch](launch.md)。
+
+T08 当前源码补充解压后原生文件检查，`VerifyAsync` / `RepairAsync` 保留原签名并复用相同安装清单；1.0.0 包含这些配置与返回值，详见[完整性检查与修复](integrity.md)。
 
 ## SDK 用法
 
@@ -16,27 +30,7 @@ T06 补充 `new GameInstaller(root)`、默认只读本地缓存的 `VerifyAsync`
 
 最简调用：`await new GameInstaller(root).InstallAsync("1.16.5", cancellationToken: ct)`。不需要先检测 Java 才能下载文件；若指定其他架构，应传匹配的 `InstallationOptions.Context`。高级共享下载器示例如下。取消抛 `OperationCanceledException`；安装、版本、下载及资源错误分别保留其模块异常和错误码，详见文末及对应模块手册。
 
-```csharp
-using FMCore.Downloader;
-using FMCore.Installer;
-using FMCore.Versions;
-
-using var http = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
-var downloads = new DownloadManager(http, Path.Combine(AppContext.BaseDirectory, ".minecraft"));
-var versions = new VersionManager(downloads);
-var installer = new GameInstaller(downloads, versions);
-using var cancellation = new CancellationTokenSource(TimeSpan.FromMinutes(15));
-var progress = new Progress<InstallationProgress>(p =>
-    Console.WriteLine($"{p.Stage}: {p.CompletedFiles}/{p.TotalFiles}, {p.Download?.BytesReceived}"));
-
-var result = await installer.InstallAsync("1.16.5", new InstallationOptions
-{
-    Context = RuleContext.Current,
-    CachePolicy = VersionCachePolicy.PreferCache
-}, progress, cancellation.Token);
-Console.WriteLine(result.ClientJarPath);
-Console.WriteLine(result.NativeDirectory);
-```
+独立、可编译的调用代码见[本模块示例](examples.md#installer)。
 
 安装器与版本管理器必须共用根目录。已选定 Java 时，`Context` 应使用 `selectedJava.GetRuleContext(features)`，使操作系统、架构和功能条件与未来启动保持一致；下载游戏文件本身不要求运行 Java。`GameDirectory` 是相对根目录的游戏目录，空字符串使用根目录，后续隔离实例可传入 `instances/name`。缓存策略沿用 T02，只影响版本元数据。
 
@@ -107,3 +101,13 @@ Windows / .NET 10 下新增 64 项离线测试，全套 268 项通过、无跳�
 验证目录与脱敏统计保留在维护者本地，不随公开仓库分发。没有下载 Java，没有启动 Minecraft，也没有验证认证、加载器、Linux/macOS 或其他架构的实际安装与运行。
 
 资料：[Mojang 版本清单](https://piston-meta.mojang.com/mc/game/version_manifest_v2.json)、[Mojang LegacyLauncher 的资源目录使用](https://github.com/Mojang/LegacyLauncher/blob/master/src/main/java/net/minecraft/launchwrapper/injector/VanillaTweakInjector.java)、[.NET ZIP/TAR 安全说明](https://learn.microsoft.com/en-us/dotnet/standard/io/zip-tar-best-practices)。
+
+T09-A 当前源码新增 [FabricInstaller](fabric.md)，直接复用本文安装、校验和修复规则；上述“未启动或验证加载器”仅指 T04 当时的验证范围。Fabric 的实际版本组合和启动验收另见 Fabric 手册。
+
+T09-C–E 进一步通过同一清单校验处理器生成库和附加支持文件。普通远程文件可按原规则修复；生成文件缺失/损坏时返回 LocalFileUnavailable，重新调用对应加载器安装器恢复，不为生成产物伪造下载地址。入口见 ForgeInstaller、NeoForgeInstaller、OptiFineInstaller 及各自中文手册。
+
+## 独立调用示例
+
+- [原版安装](examples/game-install.cs)
+- [安装计划](examples/game-plan.cs)
+- [安装进度与取消（高级）](examples/game-install-advanced.cs)

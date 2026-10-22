@@ -8,6 +8,8 @@ namespace FMCore.Installer;
 /// <summary>Checks downloaded files and legacy asset copies. Natives are safely rebuilt by repair and each launch.</summary>
 public sealed record InstallationCheckResult(ResolvedVersion Version, IReadOnlyList<FileVerificationResult> Files, bool AssetsChecked)
 {
+    /// <summary>Whether extracted natives were checked. False when disabled or source archives are missing/damaged.</summary>
+    public bool NativeFilesChecked { get; init; }
     /// <summary>Whether all enumerated downloads/layout copies meet available metadata and the resource index was readable.</summary>
     public bool IsValid => AssetsChecked && Files.All(f => f.IsUsable);
     /// <summary>Missing, size-mismatched or hash-mismatched files.</summary>
@@ -31,8 +33,7 @@ public sealed partial class GameInstaller
         options ??= new() { CachePolicy = VersionCachePolicy.CacheOnly };
         var version = await versions.ResolveAsync(versionId, options.CachePolicy, cancellationToken).ConfigureAwait(false);
         var plan = CreatePlan(version, options);
-        var indexRequest = new DownloadRequest(plan.AssetIndex.Download.Url, $"assets/indexes/{plan.AssetIndex.Id}.json")
-        { ExpectedHash = plan.AssetIndex.Download.Sha1, ExpectedSize = plan.AssetIndex.Download.Size };
+        var indexRequest = AssetManager.IndexRequest(plan.AssetIndex);
         var requests = new List<DownloadRequest> { plan.Client, indexRequest };
         requests.AddRange(plan.Libraries);
         if (plan.Logging != null) requests.Add(plan.Logging);
@@ -41,11 +42,8 @@ public sealed partial class GameInstaller
         {
             var index = AssetIndex.Parse(await GameFiles.ReadJsonAsync(GameFiles.Resolve(RootDirectory, indexRequest.RelativePath), cancellationToken).ConfigureAwait(false));
             requests.AddRange(assets.CreateDownloads(index));
-            foreach (var asset in options.VerifyAssetLayouts ? index.Objects : [])
-            {
-                if (index.Virtual) AddCopy($"assets/virtual/{plan.AssetIndex.Id}/{asset.Name}", asset);
-                if (index.MapToResources) AddCopy((plan.GameDirectory.Length == 0 ? "" : plan.GameDirectory.TrimEnd('/', '\\') + "/") + "resources/" + asset.Name, asset);
-            }
+            if (options.VerifyAssetLayouts)
+                foreach (var (asset, path) in AssetManager.LayoutTargets(index, plan.AssetIndex.Id, plan.GameDirectory)) AddCopy(path, asset);
             readable = true;
         }
         var unique = requests.DistinctBy(r => r.RelativePath, GameFiles.PathComparer).ToArray();
@@ -56,7 +54,15 @@ public sealed partial class GameInstaller
             results.Add(await downloads.VerifyAsync(request, cancellationToken).ConfigureAwait(false));
             progress?.Report(new(InstallationStage.Verification, results.Count, unique.Length));
         }
-        return new(version, results.AsReadOnly(), readable);
+        var nativesChecked = false;
+        if (options.VerifyNativeFiles && plan.NativeArchives.All(a => results.Any(r => GameFiles.PathComparer.Equals(r.RelativePath, a.RelativePath) && r.IsUsable)))
+        {
+            var nativeProgress = new InlineProgress<NativeExtractionProgress>(p => progress?.Report(new(InstallationStage.NativeVerification, p.CompletedArchives, p.TotalArchives)));
+            results.AddRange(await new NativeExtractor(RootDirectory, options.NativeExtraction).VerifyAsync(plan.NativeArchives,
+                plan.NativeDirectory, nativeProgress, cancellationToken).ConfigureAwait(false));
+            nativesChecked = true;
+        }
+        return new(version, results.AsReadOnly(), readable) { NativeFilesChecked = nativesChecked };
 
         void AddCopy(string path, AssetObject asset) => requests.Add(new(new Uri($"https://resources.download.minecraft.net/{asset.Hash[..2]}/{asset.Hash}"), path)
         { ExpectedHash = asset.Hash, ExpectedSize = asset.Size });

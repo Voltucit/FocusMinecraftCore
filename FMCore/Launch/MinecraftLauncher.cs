@@ -5,7 +5,10 @@ using FMCore.Assets;
 using FMCore.Authentication;
 using FMCore.Downloader;
 using FMCore.Installer;
+using FMCore.Instances;
 using FMCore.Java;
+using FMCore.Logging;
+using FMCore.Modpacks;
 using FMCore.Utilities;
 using FMCore.Versions;
 
@@ -26,6 +29,11 @@ public sealed class MinecraftLauncher : IAsyncDisposable
     private Task<GameExitResult>? completion;
     private int? exitCode;
     private int disposed;
+    private GameDiagnosticReport? lastDiagnostic;
+    /// <summary>Bounded, sanitized launcher and game logs. Subscribe to EntryReceived for a unified UI stream.</summary>
+    public LauncherLogger Logger { get; }
+    /// <summary>Latest completed preparation/exit diagnostics; reset on each new launch attempt.</summary>
+    public GameDiagnosticReport? LastDiagnostic => Volatile.Read(ref lastDiagnostic);
 
     /// <summary>State updates; handlers run on the executing/background thread and must not block on launcher operations.</summary>
     public event EventHandler<LaunchStateChangedEventArgs>? StateChanged;
@@ -50,6 +58,7 @@ public sealed class MinecraftLauncher : IAsyncDisposable
     {
         ArgumentNullException.ThrowIfNull(config);
         this.config = Freeze(config);
+        Logger = new(this.config.Logging, config.Account is { IsAuthenticated: true } identity ? [identity.AccessToken, identity.LegacySession] : []);
         try { this.downloads = downloads ?? new(this.config.GameCore.RootDirectory, this.config.Downloads); }
         catch (DownloadException) { throw new LaunchException(LaunchErrorCode.InvalidConfig, "游戏根目录或下载配置无效。"); }
         if (!GameFiles.PathComparer.Equals(Path.GetFullPath(this.config.GameCore.RootDirectory), this.downloads.RootDirectory))
@@ -66,25 +75,34 @@ public sealed class MinecraftLauncher : IAsyncDisposable
         ObjectDisposedException.ThrowIf(Volatile.Read(ref disposed) != 0, this);
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         FileStream? lease = null;
+        FileStream? sharedLease = null;
         string? privateDirectory = null;
         CancellationTokenSource? linked = null;
         try
         {
             ObjectDisposedException.ThrowIf(Volatile.Read(ref disposed) != 0, this);
             if (active != null) return new(false, null, new(LaunchErrorCode.AlreadyRunning, "此启动器已有游戏进程。"));
+            Logger.BeginSession();
+            Volatile.Write(ref lastDiagnostic, null);
             linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
             lock (sync) preparing = linked;
             var ct = linked.Token;
             SetState(LaunchState.Preparing);
             var root = downloads.RootDirectory;
             var game = GameDirectory();
+            sharedLease = InstanceLock.Acquire(root, game);
             var gamePath = game.Length == 0 ? root : GameFiles.Resolve(root, game);
+            if (config.GameCore.ManagedInstance != null && !Directory.Exists(gamePath))
+                throw new InstanceException(InstanceErrorCode.NotFound, "托管实例已删除，不能由旧启动快照重新创建。");
             GameFiles.CreateDirectory(gamePath);
             var lockPath = GameFiles.Resolve(root, (game.Length == 0 ? "" : game + "/") + ".fmcore/instance.lock");
             GameFiles.CreateDirectory(Path.GetDirectoryName(lockPath)!);
             try { lease = new(lockPath, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.None); }
             catch (IOException error) when ((error.HResult & 0xffff) is 32 or 33 or 11)
             { throw new LaunchException(LaunchErrorCode.InstanceBusy, "此游戏实例正在被另一个启动任务或进程使用。"); }
+            await new PackFiles(gamePath).RecoverAsync(ct).ConfigureAwait(false);
+            if (config.GameCore.ManagedInstance is { } managed)
+                await new InstanceManager(root).ValidateLaunchAsync(managed, game, config.GameCore.VersionId, ct).ConfigureAwait(false);
             progress?.Report(new(LaunchStage.Metadata));
             var versions = new VersionManager(downloads);
             var policy = config.GameCore.AutoInstall ? config.GameCore.CachePolicy : VersionCachePolicy.CacheOnly;
@@ -100,7 +118,8 @@ public sealed class MinecraftLauncher : IAsyncDisposable
                 throw new LaunchException(LaunchErrorCode.AuthenticationError, "启动账号与请求的身份不一致。");
             if (identity.IsAuthenticated && (identity.ExpiresAt == null || identity.ExpiresAt <= DateTimeOffset.UtcNow.AddSeconds(60)))
                 throw new LaunchException(LaunchErrorCode.AuthenticationError, "正版启动身份已过期或即将过期，请通过 AccountManager 刷新。");
-            var features = new Dictionary<string, bool>(config.Features, StringComparer.Ordinal) { ["has_custom_resolution"] = true };
+            if (identity.IsAuthenticated) Logger.AddSecrets(identity.AccessToken, identity.LegacySession);
+            var features = LaunchSettings.Features(config);
             privateDirectory = $".fmcore/launch/{Guid.NewGuid():N}";
             var options = new InstallationOptions
             {
@@ -117,7 +136,7 @@ public sealed class MinecraftLauncher : IAsyncDisposable
                 installation = await installer.InstallAsync(config.GameCore.VersionId, options, installProgress, ct).ConfigureAwait(false);
             else
             {
-                var check = await installer.VerifyAsync(config.GameCore.VersionId, options with { VerifyAssetLayouts = false }, installProgress, ct).ConfigureAwait(false);
+                var check = await installer.VerifyAsync(config.GameCore.VersionId, options with { VerifyAssetLayouts = false, VerifyNativeFiles = false }, installProgress, ct).ConfigureAwait(false);
                 if (!check.IsValid) throw new LaunchException(LaunchErrorCode.MissingFiles, "游戏文件缺失或损坏，请修复安装或启用 AutoInstall。");
                 var plan = installer.CreatePlan(check.Version, options);
                 var nativeDirectory = await new NativeExtractor(root).ExtractAsync(plan.NativeArchives, plan.NativeDirectory, cancellationToken: ct).ConfigureAwait(false);
@@ -136,14 +155,17 @@ public sealed class MinecraftLauncher : IAsyncDisposable
             progress?.Report(new(LaunchStage.Process));
             SetState(LaunchState.Starting);
             ct.ThrowIfCancellationRequested();
+            var crashTracker = new CrashReportTracker(gamePath, config.Logging);
+            ct.ThrowIfCancellationRequested();
             var process = new Process { StartInfo = start };
             try
             {
                 if (!process.Start()) throw new LaunchException(LaunchErrorCode.ProcessStartFailed, "无法创建游戏进程。");
             }
             catch { process.Dispose(); throw; }
-            var session = new Session(process, lease, root, privateDirectory, new(identity));
+            var session = new Session(process, lease, sharedLease, root, privateDirectory, new(identity), crashTracker);
             lease = null;
+            sharedLease = null;
             privateDirectory = null;
             lock (sync) { active = session; exitCode = null; completion = session.Completion.Task; }
             SetState(LaunchState.Running);
@@ -155,13 +177,16 @@ public sealed class MinecraftLauncher : IAsyncDisposable
         {
             var failure = Failure(error);
             SetState(LaunchState.Failed, failure);
-            return new(false, null, failure);
+            var diagnostic = GameDiagnostics.Analyze(Logger.GetEntries(), launchError: failure) with { DroppedEntries = Logger.DroppedEntries };
+            Volatile.Write(ref lastDiagnostic, diagnostic);
+            return new(false, null, failure) { Diagnostics = diagnostic };
         }
         finally
         {
             lock (sync) preparing = null;
             linked?.Dispose();
             lease?.Dispose();
+            sharedLease?.Dispose();
             if (privateDirectory != null) Cleanup(downloads.RootDirectory, privateDirectory);
             gate.Release();
         }
@@ -215,8 +240,23 @@ public sealed class MinecraftLauncher : IAsyncDisposable
             await Task.WhenAll(stdout, stderr).ConfigureAwait(false);
         }
         var result = new GameExitResult(session.Id, session.Process.ExitCode, session.Stopped, DateTimeOffset.UtcNow);
+        Logger.Write(LogLevel.Information, $"游戏进程已退出，退出码 {result.ExitCode}；由启动器停止：{result.StoppedByCaller}。");
+        GameDiagnosticReport diagnostic;
+        try
+        {
+            using var limit = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            diagnostic = await session.CrashTracker.CompleteAsync(Logger, session.Id, result.ExitCode, result.StoppedByCaller, limit.Token).ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            diagnostic = GameDiagnostics.Analyze(Logger.GetEntries(), result.ExitCode, result.StoppedByCaller) with
+            { Warnings = ["自动报告收集未完成，原始文件保持不变。"], DroppedEntries = Logger.DroppedEntries };
+        }
+        result = result with { Diagnostics = diagnostic };
+        Volatile.Write(ref lastDiagnostic, diagnostic);
         session.Lease.Dispose();
         Cleanup(session.Root, session.PrivateDirectory);
+        session.SharedLease.Dispose();
         await gate.WaitAsync().ConfigureAwait(false);
         try
         {
@@ -253,7 +293,10 @@ public sealed class MinecraftLauncher : IAsyncDisposable
 
         void Emit()
         {
-            Notify(isError ? ErrorReceived : OutputReceived, new(oversized ? "[oversized game output omitted]" : session.Redactor.Redact(line.ToString().TrimEnd('\r')), oversized));
+            var entry = Logger.WriteCore(isError ? LogLevel.Warning : LogLevel.Information,
+                oversized ? "[oversized game output omitted]" : session.Redactor.Redact(line.ToString().TrimEnd('\r')),
+                isError ? LogSource.StandardError : LogSource.StandardOutput, null, oversized);
+            Notify(isError ? ErrorReceived : OutputReceived, new(entry.Message, entry.IsTruncated));
             line.Clear();
             oversized = false;
         }
@@ -270,9 +313,9 @@ public sealed class MinecraftLauncher : IAsyncDisposable
     private static LaunchConfig Freeze(LaunchConfig value)
     {
         if (value.GameCore == null || value.Java == null || value.Window == null || value.Java.Selection == null || value.Java.Detection == null ||
-            value.Downloads == null || value.Java.Arguments == null || value.GameArguments == null || value.Features == null ||
+            value.Logging == null || value.Downloads == null || value.Java.Arguments == null || value.GameArguments == null || value.Features == null ||
             value.Window.Width is < 1 or > 16384 || value.Window.Height is < 1 or > 16384 ||
-            value.Java.MinMemoryMb < 1 || value.Java.MaxMemoryMb < value.Java.MinMemoryMb || value.Java.MaxMemoryMb > 1024 * 1024 ||
+            !LaunchSettings.ValidMemory(value.Java.MinMemoryMb, value.Java.MaxMemoryMb) ||
             string.IsNullOrWhiteSpace(value.LauncherName) || string.IsNullOrWhiteSpace(value.LauncherVersion))
             throw new LaunchException(LaunchErrorCode.InvalidConfig, "启动配置、窗口尺寸或内存设置无效。");
         string root;
@@ -288,8 +331,12 @@ public sealed class MinecraftLauncher : IAsyncDisposable
         if (arguments.Length > 512 || arguments.Any(a => a == null || a.Length > 32768 || a.Any(char.IsControl)) ||
             value.LauncherName.Length > 128 || value.LauncherVersion.Length > 128 || value.LauncherName.Any(char.IsControl) || value.LauncherVersion.Any(char.IsControl))
             throw new LaunchException(LaunchErrorCode.InvalidConfig, "启动配置包含无效参数。");
+        var server = LaunchSettings.FreezeServer(value.Server);
         return value with
         {
+            Server = server,
+            Window = value.Window with { },
+            Logging = value.Logging.Validate(),
             GameCore = value.GameCore with { RootDirectory = root },
             Java = value.Java with { Arguments = value.Java.Arguments.ToArray() },
             GameArguments = value.GameArguments.ToArray(),
@@ -297,7 +344,13 @@ public sealed class MinecraftLauncher : IAsyncDisposable
         };
     }
 
-    private void SetState(LaunchState value, LaunchError? error = null) { state = value; Notify(StateChanged, new(value, error)); }
+    private void SetState(LaunchState value, LaunchError? error = null)
+    {
+        state = value;
+        Logger.Write(error == null ? LogLevel.Information : LogLevel.Error,
+            error == null ? $"启动状态：{value}" : $"启动失败：{error.Code}/{error.DetailCode}。{error.Message}");
+        Notify(StateChanged, new(value, error));
+    }
     private void Notify<T>(EventHandler<T>? handlers, T args) where T : EventArgs
     {
         if (handlers == null) return;
@@ -306,7 +359,11 @@ public sealed class MinecraftLauncher : IAsyncDisposable
     }
     private static LaunchError Failure(Exception error) => error switch
     {
+        ModpackException e => new(e.Code == ModpackErrorCode.UnsafePath ? LaunchErrorCode.UnsafePath : LaunchErrorCode.InstallationError,
+            "整合包事务恢复失败；旧文件备份已保留，请处理冲突后重试。", e.Code.ToString()),
         LaunchException e => new(e.Code, e.Message),
+        InstanceException e => new(e.Code == InstanceErrorCode.Busy ? LaunchErrorCode.InstanceBusy : LaunchErrorCode.InvalidConfig,
+            "实例被占用、已删除或配置发生变化，请重新读取实例。", e.Code.ToString()),
         VersionException e => new(LaunchErrorCode.VersionError, "版本元数据处理失败。", e.Code.ToString()),
         JavaException e => new(LaunchErrorCode.JavaError, "Java 检测或兼容性检查失败。", e.Code.ToString()),
         AuthenticationException e => new(LaunchErrorCode.AuthenticationError, "账号认证或刷新失败。", e.Code.ToString()),
@@ -348,13 +405,15 @@ public sealed class MinecraftLauncher : IAsyncDisposable
     }
 
     private sealed class InlineProgress<T>(Action<T> action) : IProgress<T> { public void Report(T value) => action(value); }
-    private sealed class Session(Process process, FileStream lease, string root, string privateDirectory, SecretRedactor redactor)
+    private sealed class Session(Process process, FileStream lease, FileStream sharedLease, string root, string privateDirectory, SecretRedactor redactor, CrashReportTracker crashTracker)
     {
         internal Process Process { get; } = process;
         internal int Id { get; } = process.Id;
         internal FileStream Lease { get; } = lease;
+        internal FileStream SharedLease { get; } = sharedLease;
         internal string Root { get; } = root;
         internal string PrivateDirectory { get; } = privateDirectory;
+        internal CrashReportTracker CrashTracker { get; } = crashTracker;
         internal SecretRedactor Redactor { get; } = redactor;
         internal CancellationTokenSource LogCancellation { get; } = new();
         internal TaskCompletionSource<GameExitResult> Completion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);

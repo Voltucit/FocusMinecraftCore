@@ -1,20 +1,10 @@
 using FMCore.Authentication;
+using FMCore.Logging;
 
 namespace FMCore.Launch;
 
-internal sealed class SecretRedactor
+internal sealed class SecretRedactor(LaunchIdentity identity)
 {
-    private readonly string[] secrets;
-    internal SecretRedactor(LaunchIdentity identity)
-    {
-        secrets = identity.IsAuthenticated
-            ? new[] { identity.LegacySession, identity.AccessToken, Uri.EscapeDataString(identity.AccessToken), Uri.EscapeDataString(identity.LegacySession) }
-                .Where(s => s.Length != 0).Distinct(StringComparer.Ordinal).OrderByDescending(s => s.Length).ToArray()
-            : [];
-    }
-    internal string Redact(string text)
-    {
-        foreach (var secret in secrets) text = text.Replace(secret, "[REDACTED]", StringComparison.Ordinal);
-        return text;
-    }
+    private readonly SensitiveDataFilter filter = new(identity.IsAuthenticated ? [identity.LegacySession, identity.AccessToken] : []);
+    internal string Redact(string text) => filter.Redact(text);
 }

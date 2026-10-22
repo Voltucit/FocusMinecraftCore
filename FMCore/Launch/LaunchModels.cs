@@ -1,4 +1,5 @@
 using FMCore.Installer;
+using FMCore.Logging;
 
 namespace FMCore.Launch;
 
@@ -7,7 +8,9 @@ public enum LaunchState { Idle, Preparing, Starting, Running, Stopping, Exited, 
 /// <summary>Preparation stages; installation progress contains detailed download/file counts.</summary>
 public enum LaunchStage { Metadata, Java, Account, Installation, Arguments, Process }
 /// <summary>Stable launch failure categories. DetailCode in LaunchError retains the originating module's enum name.</summary>
-public enum LaunchErrorCode { InvalidConfig, AlreadyRunning, InstanceBusy, VersionError, JavaError, AuthenticationError, InstallationError, MissingFiles, InvalidArguments, UnsafePath, ProcessStartFailed, ProcessControlFailed, IoError, UnexpectedError }
+public enum LaunchErrorCode { InvalidConfig, AlreadyRunning, InstanceBusy, VersionError, JavaError, AuthenticationError, InstallationError, MissingFiles, InvalidArguments, UnsafePath, ProcessStartFailed, ProcessControlFailed, IoError, UnexpectedError,
+    /// <summary>版本未声明所需启动设置，无法安全选择兼容的参数。</summary>
+    UnsupportedGameSettings }
 /// <summary>Sanitized structured failure, with no raw command line, credentials or inner exceptions.</summary>
 public sealed record LaunchError(LaunchErrorCode Code, string Message, string? DetailCode = null);
 /// <summary>Thrown for invalid configuration or process-control misuse; LaunchAsync reports operational failures in its result.</summary>
@@ -17,9 +20,17 @@ public sealed class LaunchException(LaunchErrorCode code, string message) : Exce
     public LaunchErrorCode Code { get; } = code;
 }
 /// <summary>Process creation outcome. Success does not promise successful rendering or server authentication.</summary>
-public sealed record LaunchResult(bool Success, int? ProcessId, LaunchError? Error);
+public sealed record LaunchResult(bool Success, int? ProcessId, LaunchError? Error)
+{
+    /// <summary>Preparation-failure evidence, when no game could be started. Successful-process diagnostics are available on the exit result.</summary>
+    public GameDiagnosticReport? Diagnostics { get; init; }
+}
 /// <summary>Actual process completion, after redirected output has drained.</summary>
-public sealed record GameExitResult(int ProcessId, int ExitCode, bool StoppedByCaller, DateTimeOffset ExitedAt);
+public sealed record GameExitResult(int ProcessId, int ExitCode, bool StoppedByCaller, DateTimeOffset ExitedAt)
+{
+    /// <summary>Sanitized, bounded evidence and current-session crash-report candidates; no root cause is inferred from ExitCode alone.</summary>
+    public GameDiagnosticReport? Diagnostics { get; init; }
+}
 /// <summary>Preparation progress and optional detailed installer progress.</summary>
 public sealed record LaunchProgress(LaunchStage Stage, InstallationProgress? Installation = null);
 /// <summary>Lifecycle notification. Handlers must return promptly and marshal UI updates themselves.</summary>

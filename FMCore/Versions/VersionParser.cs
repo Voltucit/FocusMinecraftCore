@@ -64,10 +64,18 @@ public static class VersionParser
             var file = Object(info["file"]);
             logging = new(Text(info, "argument")!, Text(info, "type", false), Id(Text(file, "id")!), Artifact(file));
         }
+        var generated = document["fmcoreGeneratedFiles"] == null ? [] : Array(document["fmcoreGeneratedFiles"]).Select(n =>
+        {
+            var f = Object(n); var path = Relative(Text(f, "path")!);
+            if (!path.StartsWith("libraries/", StringComparison.Ordinal) || Size(f, "size") is not long size) throw Invalid();
+            return new GeneratedFile(path, Hash(Text(f, "sha1")!)!, size);
+        }).ToArray();
+        if (generated.Select(f => f.RelativePath).Distinct(StringComparer.OrdinalIgnoreCase).Count() != generated.Length) throw Invalid();
         return new(document, id, parent, jar, Text(document, "type", false), Text(document, "mainClass", false),
             OptionalId(document, "assets"), legacy, java, assets, logging,
             new ReadOnlyDictionary<string, DownloadArtifact>(downloads), System.Array.AsReadOnly(libraries),
-            new(System.Array.AsReadOnly(jvm), System.Array.AsReadOnly(game), arguments?["jvm"] != null));
+            new(System.Array.AsReadOnly(jvm), System.Array.AsReadOnly(game), arguments?["jvm"] != null))
+        { GeneratedFiles = System.Array.AsReadOnly(generated) };
     }
 
     private static LibraryMetadata Library(JsonObject value)
@@ -142,8 +150,15 @@ public static class VersionParser
         return System.Array.AsReadOnly(rules);
     }
 
-    private static DownloadArtifact Artifact(JsonObject value, string? fallbackPath = null) => new(Url(Text(value, "url")!),
-        Hash(Text(value, "sha1", false)), Size(value, "size"), Text(value, "path", false) is string path ? Relative(path) : fallbackPath);
+    private static DownloadArtifact Artifact(JsonObject value, string? fallbackPath = null)
+    {
+        var url = Text(value, "url")!;
+        var hash = Hash(Text(value, "sha1", false));
+        // An empty Forge library URL explicitly denotes an embedded or processor-generated file.
+        var local = url.Length == 0 && fallbackPath != null && hash != null;
+        return new(local ? new Uri("about:blank") : Url(url), hash, Size(value, "size"),
+            Text(value, "path", false) is string path ? Relative(path) : fallbackPath);
+    }
 
     internal static string Id(string id)
     {

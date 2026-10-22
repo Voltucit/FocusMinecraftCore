@@ -6,6 +6,8 @@ public sealed record DownloadRequest(Uri Source, string RelativePath)
     public string? ExpectedHash { get; init; }
     public DownloadHashAlgorithm HashAlgorithm { get; init; } = DownloadHashAlgorithm.Sha1;
     public long? ExpectedSize { get; init; }
+    /// <summary>Verify/reuse an already generated local file; requires ExpectedHash and never performs a network request.</summary>
+    public bool LocalOnly { get; init; }
 
     // Signed URLs may contain secrets, so never include Source in diagnostic output.
     public override string ToString() => $"Download: {RelativePath}";

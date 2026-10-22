@@ -18,11 +18,9 @@ public sealed class AssetManager(DownloadManager downloads)
         ArgumentNullException.ThrowIfNull(info);
         if (info.Download.Size > 16 * 1024 * 1024)
             throw new AssetException(AssetErrorCode.InvalidIndex, "资源索引超过 16 MiB 限制。");
-        var relative = $"assets/indexes/{VersionParser.Id(info.Id)}.json";
         try
         {
-            var result = await downloads.DownloadAsync(new(info.Download.Url, relative)
-            { ExpectedHash = info.Download.Sha1, ExpectedSize = info.Download.Size }, progress, cancellationToken).ConfigureAwait(false);
+            var result = await downloads.DownloadAsync(IndexRequest(info), progress, cancellationToken).ConfigureAwait(false);
             return new(AssetIndex.Parse(await GameFiles.ReadJsonAsync(result.FullPath, cancellationToken).ConfigureAwait(false)), result);
         }
         catch (InvalidDataException) { throw new AssetException(AssetErrorCode.InvalidIndex, "资源索引超过 16 MiB 限制。"); }
@@ -43,12 +41,7 @@ public sealed class AssetManager(DownloadManager downloads)
         if (gameDirectory.Length != 0) GameFiles.Resolve(RootDirectory, gameDirectory);
         var virtualRelative = $"assets/virtual/{indexId}";
         var resourcesRelative = gameDirectory.Length == 0 ? "resources" : gameDirectory.TrimEnd('/', '\\') + "/resources";
-        var targets = new List<(AssetObject Asset, string Relative)>();
-        foreach (var asset in index.Objects)
-        {
-            if (index.Virtual) targets.Add((asset, virtualRelative + "/" + asset.Name));
-            if (index.MapToResources) targets.Add((asset, resourcesRelative + "/" + asset.Name));
-        }
+        var targets = LayoutTargets(index, indexId, gameDirectory).ToList();
         // Validate every layout destination before making any copies.
         foreach (var (_, relative) in targets) GameFiles.Resolve(RootDirectory, relative);
         try
@@ -94,6 +87,18 @@ public sealed class AssetManager(DownloadManager downloads)
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         { throw new AssetException(AssetErrorCode.IoError, "旧版资源布局文件操作失败。"); }
+    }
+
+    internal static DownloadRequest IndexRequest(AssetIndexInfo info) => new(info.Download.Url, $"assets/indexes/{VersionParser.Id(info.Id)}.json")
+    { ExpectedHash = info.Download.Sha1, ExpectedSize = info.Download.Size };
+
+    internal static IEnumerable<(AssetObject Asset, string Relative)> LayoutTargets(AssetIndex index, string indexId, string gameDirectory)
+    {
+        foreach (var asset in index.Objects)
+        {
+            if (index.Virtual) yield return (asset, $"assets/virtual/{indexId}/{asset.Name}");
+            if (index.MapToResources) yield return (asset, (gameDirectory.Length == 0 ? "" : gameDirectory.TrimEnd('/', '\\') + "/") + "resources/" + asset.Name);
+        }
     }
 
     private static AssetException Corrupt() => new(AssetErrorCode.HashMismatch, "资源对象大小或哈希无效，无法生成旧版布局。");

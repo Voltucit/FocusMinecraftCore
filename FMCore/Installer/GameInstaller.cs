@@ -38,8 +38,20 @@ public sealed partial class GameInstaller
     public async Task<InstallationResult> InstallAsync(string versionId, InstallationOptions? options = null,
         IProgress<InstallationProgress>? progress = null, CancellationToken cancellationToken = default)
     {
-        options ??= new();
         VersionParser.Id(versionId);
+        options ??= new();
+        var policy = options.CachePolicy;
+        return await InstallCoreAsync(ct => versions.ResolveAsync(versionId, policy, ct), options, progress, cancellationToken).ConfigureAwait(false);
+    }
+
+    // Loader metadata can be installed in memory; publish its profile only after the same pipeline succeeds.
+    internal Task<InstallationResult> InstallResolvedAsync(ResolvedVersion version, InstallationOptions options,
+        IProgress<InstallationProgress>? progress, CancellationToken cancellationToken) =>
+        InstallCoreAsync(_ => Task.FromResult(version), options, progress, cancellationToken);
+
+    private async Task<InstallationResult> InstallCoreAsync(Func<CancellationToken, Task<ResolvedVersion>> resolve,
+        InstallationOptions options, IProgress<InstallationProgress>? progress, CancellationToken cancellationToken)
+    {
         cancellationToken.ThrowIfCancellationRequested();
         try
         {
@@ -47,7 +59,7 @@ public sealed partial class GameInstaller
             GameFiles.CreateDirectory(Path.GetDirectoryName(lockPath)!);
             using var lease = AcquireLease(lockPath);
             progress?.Report(new(InstallationStage.Metadata, 0, 1));
-            var version = await versions.ResolveAsync(versionId, options.CachePolicy, cancellationToken).ConfigureAwait(false);
+            var version = await resolve(cancellationToken).ConfigureAwait(false);
             var plan = CreatePlan(version, options);
             var extractor = new NativeExtractor(RootDirectory, options.NativeExtraction);
             progress?.Report(new(InstallationStage.Metadata, 1, 1));

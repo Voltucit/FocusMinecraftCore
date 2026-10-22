@@ -11,8 +11,13 @@ public sealed record VersionManifest(string LatestRelease, string LatestSnapshot
 
 public sealed record DownloadArtifact(Uri Url, string? Sha1, long? Size, string? Path)
 {
+    /// <summary>True for processor-generated libraries with an empty metadata URL; Url is about:blank and must never be fetched.</summary>
+    public bool IsLocalOnly => Url.OriginalString == "about:blank";
     public override string ToString() => Path ?? "Metadata download artifact";
 }
+
+/// <summary>A processor-generated supporting file, relative to the game root; not automatically part of Classpath.</summary>
+public sealed record GeneratedFile(string RelativePath, string Sha1, long Size);
 
 public sealed record AssetIndexInfo(string Id, DownloadArtifact Download, long? TotalSize);
 public sealed record JavaRequirement(string? Component, int MajorVersion);
@@ -53,6 +58,8 @@ public sealed class VersionMetadata
     public IReadOnlyDictionary<string, DownloadArtifact> Downloads { get; }
     public IReadOnlyList<LibraryMetadata> Libraries { get; }
     public VersionArguments Arguments { get; }
+    /// <summary>Additional processor outputs verified by the existing installer. Reinstall the loader if one is missing or damaged.</summary>
+    public IReadOnlyList<GeneratedFile> GeneratedFiles { get; internal init; } = [];
 
     internal VersionMetadata(JsonObject document, string id, string? inheritsFrom, string? jar, string? type,
         string? mainClass, string? assets, string? legacyGameArguments, JavaRequirement? java,

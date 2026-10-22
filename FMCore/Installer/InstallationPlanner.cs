@@ -61,6 +61,8 @@ internal static class InstallationPlanner
                 };
             archives[path] = archive;
         }
+        foreach (var file in metadata.GeneratedFiles)
+            Add(new(new Uri("about:blank"), file.RelativePath) { ExpectedHash = file.Sha1, ExpectedSize = file.Size, LocalOnly = true });
         var logging = metadata.Logging is LoggingConfiguration log
             ? Request(log.File, $"assets/log_configs/{VersionParser.Id(log.FileId)}") : null;
         GameFiles.Resolve(root, client.RelativePath);
@@ -86,5 +88,5 @@ internal static class InstallationPlanner
     }
 
     private static DownloadRequest Request(DownloadArtifact artifact, string path) => new(artifact.Url, path.Replace('\\', '/'))
-    { ExpectedHash = artifact.Sha1, ExpectedSize = artifact.Size };
+    { ExpectedHash = artifact.Sha1, ExpectedSize = artifact.Size, LocalOnly = artifact.IsLocalOnly };
 }

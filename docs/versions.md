@@ -1,5 +1,17 @@
 # T02 版本管理
 
+本手册对应当前源码。每项操作的 using、参数与调用均在独立源码中；编译/运行方式见[示例目录](examples.md)。
+
+## 最简调用
+
+```csharp
+using FMCore.Versions;
+
+var catalog = await GameCoreUtil.GetAvailableVersionsAsync();
+foreach (var v in catalog.Versions) Console.WriteLine($"{v.Id} {v.Type}");
+```
+
+
 命名空间：`FMCore.Versions`。无新增第三方依赖。
 
 T06 补充 `GameCoreUtil.GetGameCoresAsync(root)` / `GetGameCoreAsync(id, root)` 及同步便捷方法，返回加载器识别、有效 Java 要求、继承元数据和本地 JAR 状态。原 VersionManager API 保留，示例见 [P0 SDK](sdk.md)。
@@ -17,25 +29,7 @@ T06 补充 `GameCoreUtil.GetGameCoresAsync(root)` / `GetGameCoreAsync(id, root)`
 
 最简本地查询：`var cores = await GameCoreUtil.GetGameCoresAsync(root, ct)`。需要联网目录、缓存或完整继承时使用下方 VersionManager 示例。异步方法支持取消；无效 ID、循环、缓存和 JSON 失败使用 `VersionException.Code`，错误列表见文末。同步别名会阻塞 UI 线程。
 
-```csharp
-using FMCore.Downloader;
-using FMCore.Versions;
-
-using var http = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
-var downloader = new DownloadManager(http, Path.Combine(AppContext.BaseDirectory, ".fmcore"));
-var versions = new VersionManager(downloader);
-using var cancellation = new CancellationTokenSource(TimeSpan.FromMinutes(2));
-
-var manifest = await versions.GetManifestAsync(VersionCachePolicy.Refresh, cancellation.Token);
-var resolved = await versions.ResolveAsync("1.21.1", cancellationToken: cancellation.Token);
-Console.WriteLine(resolved.Metadata.MainClass);
-Console.WriteLine(resolved.ClientJarId);
-
-var context = RuleContext.Current;
-var libraries = resolved.Metadata.GetLibraries(context);
-var jvmArguments = resolved.Metadata.Arguments.GetJvmArguments(context);
-var gameArguments = resolved.Metadata.Arguments.GetGameArguments(context);
-```
+独立、可编译的调用代码见[本模块示例](examples.md#versions)。
 
 一个根目录复用一个下载器和版本管理器。调用方负责 HttpClient 生命周期；Versions 不会释放它。
 
@@ -57,12 +51,7 @@ var gameArguments = resolved.Metadata.Arguments.GetGameArguments(context);
 
 将 DownloadManager 的根目录设为现有 Minecraft 游戏目录（通常是 `.minecraft`），然后使用同一个版本管理器：
 
-```csharp
-var localVersions = await versions.GetLocalVersionsAsync(cancellation.Token);
-var downloaded = localVersions.Where(v => v.HasClientJar);
-foreach (var version in downloaded)
-    Console.WriteLine($"{version.Id}: {version.ClientJarPath}");
-```
+独立、可编译的调用代码见[本模块示例](examples.md#versions)。
 
 只扫描一层 `versions/<id>/<id>.json`，按 ID 稳定排序，不扫描整块磁盘，也不递归搜索任意游戏文件夹。没有同名 JSON 的普通目录会被忽略。操作只读，不下载、不修改游戏文件，不读取或刷新官方列表缓存；已被其他启动器调整的本地配置也可独立解析。
 
@@ -124,3 +113,19 @@ Windows / .NET 10 下 139 项测试通过，无失败或跳过，其中 T02 原�
 2026-10-21 另外通过实际 SDK 访问官方服务，取得当时 920 条版本记录，解析 `1.21.1` 与 `26.4-snapshot-5` 的元数据，并在禁止联网的客户端下解析缓存及 Fabric 继承。此结果只证明元数据流程，不代表加载器安装、游戏安装或游戏启动通过验证；其他操作系统尚未实际验证。
 
 脱敏测试样本及其来源、校验和保留在维护者本地，不随公开仓库分发。官方接口：[Mojang 版本列表](https://piston-meta.mojang.com/mc/game/version_manifest_v2.json)、[Fabric 元数据说明](https://github.com/FabricMC/fabric-meta/blob/master/README.md)。
+
+T09-C–E：生成 Libraries 的空 URL 只有提供 SHA-1 时才可解析，DownloadArtifact.IsLocalOnly=true、Url=about:blank。额外支持文件存于 VersionMetadata.GeneratedFiles（RelativePath/Sha1/Size；JSON 扩展 fmcoreGeneratedFiles），仅允许 libraries/ 内路径，由原 Installer 清单校验，不自动加入 Classpath。已有公开签名保留，详见加载器手册。
+
+## 独立调用示例
+
+- [官方可用版本](examples/versions-available.cs)
+- [本地版本列表](examples/versions-installed.cs)
+- [指定本地版本](examples/versions-info.cs)
+- [继承解析](examples/versions-resolve.cs)
+- [原始版本元数据](examples/versions-profile.cs)
+- [保存本地元数据](examples/versions-save.cs)
+- [缓存刷新与取消（高级）](examples/versions-advanced.cs)
+
+## T10 官方目录入口
+
+`GameCoreUtil.GetAvailableVersionsAsync(root, cachePolicy, cancellationToken)` 返回 VersionManifest，内部复用 VersionManager.GetManifestAsync。root 默认 .minecraft，缓存策略默认 PreferCache；本地查询仍使用 GetGameCoresAsync / GetGameCoreAsync，不混淆可下载版本与本地 profile。

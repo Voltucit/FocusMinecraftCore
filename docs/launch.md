@@ -1,6 +1,34 @@
 # 原版启动
 
+本手册对应 1.0.0。每项操作的 using、参数与调用均在独立源码中；编译/运行方式见[示例目录](examples.md)。
+
+## 最简调用
+
+```csharp
+using FMCore.Authentication;
+using FMCore.Java;
+using FMCore.Launch;
+
+using var accounts = new AccountManager(".fmcore/accounts");
+var path = Environment.GetEnvironmentVariable("FMCORE_JAVA") ?? throw new InvalidOperationException("请设置 FMCORE_JAVA。");
+var java = await JavaUtil.GetJavaInfoAsync(path);
+var identity = await accounts.LoginOfflineAsync("Player");
+var config = LaunchConfig.Create("1.16.5", ".minecraft", identity, java, maxMemoryMb: 2048);
+await using var launcher = new MinecraftLauncher(config);
+var result = await launcher.LaunchAsync();
+if (!result.Success) { Console.WriteLine(result.Error); return; }
+var exit = await launcher.WaitForExitAsync();
+Console.WriteLine(exit.ExitCode);
+```
+
+
 `FMCore.Launch.MinecraftLauncher` 自动协调版本继承、Java、账号、安装检查、Classpath、条件参数、资源布局和原生依赖。仅引用 FMCore，无需 GUI 框架、DI 容器或手动构建命令行。
+
+T07 当前源码新增[实例管理](instances.md)：`instance.CreateLaunchConfig(account)` 自动绑定配置和隔离目录，并在启动前检查修订。准备/运行期间与更新和删除互斥，已有手工构造方式保留。该功能包含于 1.0.0。
+
+T08 当前源码新增 `LaunchConfig.Logging`、`launcher.Logger` / `LastDiagnostic`，准备失败和退出结果提供 `Diagnostics`；原事件与结果构造签名保留。诊断说明与完整示例见[日志与诊断](logging.md)。
+
+T13 当前源码新增 `LaunchConfig.Server`，内存允许 `MinMemoryMb = 0` 省略 Xms，窗口/JVM/服务器参数统一归一化与冲突检查。公开签名与默认内存保留，完整参数表及持久化示例见[高级启动设置](advanced-launch.md)。
 
 ## 最简完整示例
 
@@ -17,27 +45,7 @@
 
 可作为启用隐式 using 的 .NET 10 控制台 `Program.cs`。先安装对应 Java；默认会下载/修复原版游戏。离线登录不需要网络，游戏文件尚未安装时仍需联网安装。
 
-```csharp
-using FMCore.Authentication;
-using FMCore.Launch;
-
-var ct = CancellationToken.None;
-using var accounts = new AccountManager(Path.Combine(
-    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MyLauncher", "accounts"));
-await using var launcher = new MinecraftLauncher(new()
-{
-    GameCore = new() { RootDirectory = ".minecraft", VersionId = "1.16.5" },
-    Account = await accounts.LoginOfflineAsync("Player", ct)
-});
-var result = await launcher.LaunchAsync(cancellationToken: ct);
-if (!result.Success)
-{
-    Console.Error.WriteLine($"{result.Error!.Code}: {result.Error.Message}");
-    return;
-}
-var exit = await launcher.WaitForExitAsync(ct);
-Console.WriteLine($"游戏退出：{exit.ExitCode}");
-```
+独立、可编译的调用代码见[本模块示例](examples.md#launch)。
 
 `LaunchAsync` 在进程创建后返回，**不代表游戏已到主菜单**。`WaitForExitAsync` 保持示例存活并获取真实退出码；异步释放会停止该启动器拥有的游戏。GUI 应把启动器保存为应用/窗口字段，而不是在按钮事件内立即释放。
 
@@ -47,90 +55,7 @@ Console.WriteLine($"游戏退出：{exit.ExitCode}");
 
 运行时加入 `--microsoft` 才发起正版设备授权，必须配置自己的 `FMCORE_CLIENT_ID`，短码只作为前台提示。两个示例都只调用公开 API，可独立编译。
 
-```csharp
-using FMCore.Authentication;
-using FMCore.Launch;
-
-using var cancellation = new CancellationTokenSource();
-Console.CancelKeyPress += (_, e) => { e.Cancel = true; cancellation.Cancel(); };
-var ct = cancellation.Token;
-var root = Environment.GetEnvironmentVariable("FMCORE_GAME_ROOT") ?? ".minecraft";
-var accountDirectory = Environment.GetEnvironmentVariable("FMCORE_ACCOUNT_DIRECTORY") ?? Path.Combine(
-    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "MyLauncher", "accounts");
-using var accounts = new AccountManager(accountDirectory);
-try
-{
-    LaunchIdentity identity;
-    if (args.Contains("--microsoft", StringComparer.Ordinal))
-    {
-        var clientId = Environment.GetEnvironmentVariable("FMCORE_CLIENT_ID")
-            ?? throw new InvalidOperationException("请配置自己的 FMCORE_CLIENT_ID。");
-        identity = await accounts.LoginMicrosoftAsync(new(clientId), (code, token) =>
-        {
-            token.ThrowIfCancellationRequested();
-            if (Console.IsOutputRedirected)
-                throw new InvalidOperationException("授权提示只应显示在前台交互界面。");
-            Console.WriteLine($"请在 {code.VerificationUri} 输入 {code.UserCode}");
-            return Task.CompletedTask; // 展示后返回，核心负责轮询。
-        }, cancellationToken: ct);
-    }
-    else identity = await accounts.LoginOfflineAsync("Player", ct);
-
-    var config = new LaunchConfig
-    {
-        GameCore = new()
-        {
-            RootDirectory = root,
-            VersionId = Environment.GetEnvironmentVariable("FMCORE_VERSION") ?? "1.16.5",
-            InstanceId = "survival",
-            Isolate = true,
-            AutoInstall = true
-        },
-        Java = new()
-        {
-            JavaPath = Environment.GetEnvironmentVariable("FMCORE_JAVA"),
-            MinMemoryMb = 512,
-            MaxMemoryMb = 4096,
-            Arguments = ["-XX:+UseG1GC", "-Dexample.option=value with spaces"]
-        },
-        Window = new() { Width = 1280, Height = 720, Fullscreen = false },
-        Account = identity,
-        Accounts = accounts // 启动前自动重取/刷新此账号，调用方保留管理器所有权。
-    };
-    await using var launcher = new MinecraftLauncher(config);
-    launcher.StateChanged += (_, e) => Console.WriteLine($"状态：{e.State}");
-    launcher.OutputReceived += (_, e) => Console.WriteLine(e.Text);
-    launcher.ErrorReceived += (_, e) => Console.Error.WriteLine(e.Text);
-    launcher.Exited += (_, e) => Console.WriteLine($"退出码：{e.Result.ExitCode}");
-    var progress = new Progress<LaunchProgress>(p =>
-    {
-        if (p.Installation is { } files)
-            Console.WriteLine($"{files.Stage}: {files.CompletedFiles}/{files.TotalFiles}");
-        else Console.WriteLine(p.Stage);
-    });
-
-    var result = await launcher.LaunchAsync(progress, ct);
-    if (!result.Success)
-    {
-        Console.Error.WriteLine($"{result.Error!.Code}: {result.Error.Message} ({result.Error.DetailCode})");
-        return;
-    }
-    try { await launcher.WaitForExitAsync(ct); }
-    finally { await launcher.StopAsync(); } // 等待被取消时仍清理本示例拥有的进程。
-}
-catch (OperationCanceledException) when (ct.IsCancellationRequested)
-{
-    Console.WriteLine("操作已取消。");
-}
-catch (AuthenticationException error)
-{
-    Console.Error.WriteLine($"认证失败：{error.Code} / {error.Stage}");
-}
-catch (LaunchException error)
-{
-    Console.Error.WriteLine($"配置或进程操作失败：{error.Code}");
-}
-```
+独立、可编译的调用代码见[本模块示例](examples.md#launch)。
 
 WPF、Avalonia、WinUI 使用相同配置与调用。`Progress<T>` 可在 UI 线程创建以捕获上下文；普通 .NET 事件和设备码回调可能运行在后台，宿主通过自己的 Dispatcher 更新界面。事件处理器应快速返回，不要同步等待启动器操作；处理器异常被隔离，避免阻断日志读取或误报进程状态。
 
@@ -144,15 +69,18 @@ WPF、Avalonia、WinUI 使用相同配置与调用。`Progress<T>` 可在 UI 线
 | `AutoInstall` | 默认 `true`，自动下载/修复；`false` 仅使用缓存元数据与本地下载文件，仍生成实例目录、原生依赖和旧版资源映射 |
 | `CachePolicy` | 自动安装时默认 `PreferCache`；本地启动使用 `CacheOnly` |
 | `JavaPath` | 显式路径优先，实际运行探测后仍须匹配版本/架构，失败不换用其他 Java |
-| `MinMemoryMb` / `MaxMemoryMb` | 512 / 2048 MiB；最小不超过最大；32 位 Java 最大 1536 MiB |
+| `MinMemoryMb` / `MaxMemoryMb` | 512 / 2048 MiB；最小设为 0 时省略 Xms，其他情况不得超过最大；32 位 Java 最大 1536 MiB |
 | `Java.Selection` / `Detection` | 高级兼容/扫描策略；元数据缺 Java 要求时须显式配置 `FallbackMajorVersion` |
 | `Window` | 854×480，非全屏；自动启用自定义分辨率条件 |
+| `Server` | 可选 `GameServerConfig`，Host + Port（默认 25565）；按元数据规则使用旧版或 Quick Play 语法 |
 | `Account` / `Accounts` | 直接接收 T05 `LaunchIdentity`；可传管理器重取/刷新，未给身份时使用其所选账号 |
 | `Java.Arguments` / `GameArguments` | 每个元素一个参数，保留空格，不手动加 shell 引号；不允许覆盖受控的内存、Classpath、主类、账号或资源目录 |
-| `Features` | 自定义版本功能条件，`has_custom_resolution` 由窗口配置确定 |
+| `Features` | 自定义版本功能条件，窗口及 Quick Play 的受控条件由 SDK 确定，其他条件保留 |
 | `Downloads` | 默认下载并发/重试配置，可直接覆盖 |
 
-版本继承、规则和客户端选择直接消费 Versions 模型；同时具有普通 artifact 与 native classifier 的库会保留两者。Java 主版本严格匹配元数据，不把更高主版本当作兼容替代。已安装加载器 profile 可通过其版本 ID 查询元数据，但本阶段没有安装或实测加载器，不据此宣称 Fabric/Forge 等运行已验证。
+BootstrapLauncher 的元数据 ignoreList 会补充实际继承客户端文件名，避免原版与处理器生成的 Minecraft 模块重复；不改写 version_name。
+
+版本继承、规则和客户端选择直接消费 Versions 模型；同时具有普通 artifact 与 native classifier 的库会保留两者。Java 主版本严格匹配元数据，不把更高主版本当作兼容替代。已安装加载器 profile 通过版本 ID 复用相同启动逻辑。T06 当时未安装或实测加载器；后续 T09-A 当前源码已真实离线验证 1.16.5 / Fabric Loader 0.19.5 / Java 8，完整组合、安装入口和验收边界见 [Fabric 手册](fabric.md)。T09-C–E 也已分别通过 [Forge](forge.md)、[NeoForge](neoforge.md)、[OptiFine](optifine.md) 的真实离线验收；Quilt 已取消。
 
 原生解压目录为共享根下 `.fmcore/launch/<随机 ID>/natives`，每次启动独立，进程退出后清理；设置、存档、游戏日志留在实例工作目录。相同工作目录有进程生命周期锁，第二个启动返回 `InstanceBusy`，不同实例可并行。实例隔离不等于本阶段实现完整实例导入、删除、备份管理。
 
@@ -175,3 +103,19 @@ SDK 不公开原始 `Process`、`ProcessStartInfo` 或完整参数字符串。�
 验收：Windows / .NET 10 自动化测试 402 项通过；真实游戏版本仅 **1.16.5**，Java **1.8.0_482 x64**。正版与离线均由外部调用方仅通过公开 SDK 启动，观察到窗口、OpenAL 和纹理图集初始化后自动停止，未进入世界或测试多人服务器。Linux/macOS 路径与规则通过模拟/参数测试，未做对应实机启动。公开入口与用法见 [P0 API 清单](sdk.md)，详细实机记录保留在维护者本地。
 
 实现依据：[.NET ArgumentList](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.processstartinfo.argumentlist?view=net-10.0)、[并行读取进程输出](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.process.standardoutput?view=net-10.0)、[等待退出](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.process.waitforexitasync?view=net-10.0)、[停止进程树](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.process.kill?view=net-10.0)、[Java 启动命令](https://docs.oracle.com/en/java/javase/21/docs/specs/man/java.html)；参数结构来自已归档的官方版本 JSON Fixtures。
+
+T12 当前源码会在标准启动入口、持有实例锁后检查并恢复中断的整包事务；恢复受外部修改阻碍时返回带结构化 DetailCode 的安装错误并保留备份。游戏启动/退出从不自动确认或清理整合包更新。需要验证后确认时，使用 [ModpackInstaller 的验证与确认示例](modpacks.md)。
+
+T13 的同值重复参数会去重，自定义列表内的冲突值明确失败；同类 JVM 自定义参数覆盖元数据默认值。窗口与服务器统一从强类型配置生成；原来靠追加不同值覆盖的用法需迁移。详细行为变化及新增 UnsupportedGameSettings 见[高级启动设置](advanced-launch.md)。
+
+T14 当前源码可在调用方明确请求后，先通过 JavaRuntimeUtil.InstallAsync 安装指定主版本或精确包，再将返回的 ExecutablePath 设置到 Java.JavaPath。LaunchAsync 不自动下载安装 Java，也不改变严格兼容检查；见 [Java Runtime](java-runtime.md)。
+
+## 独立调用示例
+
+- [启动与等待退出](examples/launch-minimal.cs)
+- [状态、日志、退出与取消（高级）](examples/launch-advanced.cs)
+- [启动已有实例](examples/launch-instance.cs)
+
+## T10 简单启动配置
+
+`LaunchConfig.Create(versionId, rootDirectory, account, java, maxMemoryMb, minMemoryMb = 0)` 直接接收 LaunchIdentity 与 JavaRuntime，返回原有 LaunchConfig；账号、Java 与最大内存均需明确传入。最小内存默认 0 省略 Xms，原构造/属性默认值不变。高级设置用 with 继续配置；启动器执行相同校验，不创建第二套启动引擎。

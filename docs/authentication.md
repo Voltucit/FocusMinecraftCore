@@ -1,5 +1,18 @@
 # 账号管理
 
+本手册对应当前源码。每项操作的 using、参数与调用均在独立源码中；编译/运行方式见[示例目录](examples.md)。
+
+## 最简调用
+
+```csharp
+using FMCore.Authentication;
+
+using var accounts = new AccountManager(".fmcore/accounts");
+var identity = await accounts.LoginOfflineAsync("Player");
+Console.WriteLine(identity.Account.Name);
+```
+
+
 `FMCore.Authentication.AccountManager` 统一管理 Microsoft 正版与离线账号，面向 WPF、Avalonia、WinUI 等宿主。无需新增项目、GUI 依赖或认证框架。所有 I/O 操作异步，支持 `CancellationToken`。
 
 T05 阶段通过模拟认证和本地测试。T06 已使用调用方提供的 Client ID 和交互式 Microsoft 授权，真实验证登录、游戏资格/玩家资料、刷新及 Windows x64 下 1.16.5 正版启动；未验证多人服务器联机。此处为历史实机验收范围，详细记录保留在维护者本地。
@@ -18,10 +31,7 @@ T05 阶段通过模拟认证和本地测试。T06 已使用调用方提供的 Cl
 
 以上进度与取消均可省略；业务失败使用 `AuthenticationException.Code`，取消使用 `OperationCanceledException`。管理器与安全存储生命周期、完整正版与离线调用及错误码见下文，不要求调用方读取或拼接令牌。
 
-```csharp
-using var accounts = new AccountManager(accountDirectory); // Windows 默认 DPAPI
-// 非 Windows：new AccountManager(accountDirectory, yourSecureVault)
-```
+独立、可编译的调用代码见[本模块示例](examples.md#authentication)。
 
 | 方法 | 行为 |
 | --- | --- |
@@ -45,76 +55,7 @@ using var accounts = new AccountManager(accountDirectory); // Windows 默认 DPA
 
 以下代码可放入调用方 .NET 10 控制台项目的 `Program.cs`，项目引用 `FMCore`，开启隐式 using。默认只执行离线账号流程；传入 `--microsoft` 时才执行正版登录。`FMCORE_CLIENT_ID` 必须由调用方设置为自己合法注册、支持个人 Microsoft 账号和公共客户端设备授权，并满足 Xbox/Minecraft 服务访问条件的应用 ID；库不提供可借用的 ID，也不需要密码或客户端密钥。
 
-```csharp
-using FMCore.Authentication;
-
-using var cancellation = new CancellationTokenSource();
-Console.CancelKeyPress += (_, e) => { e.Cancel = true; cancellation.Cancel(); };
-var ct = cancellation.Token;
-var accountDirectory = Environment.GetEnvironmentVariable("FMCORE_ACCOUNT_DIRECTORY") ?? Path.Combine(
-    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
-    "MyLauncher", "accounts");
-using var accounts = new AccountManager(accountDirectory);
-
-accounts.AccountsChanged += (_, change) =>
-    Console.WriteLine($"账号变化：{change.Change}，共 {change.Snapshot.Accounts.Count} 个");
-var progress = new Progress<AuthenticationProgress>(p =>
-    Console.WriteLine($"认证阶段：{p.Stage}"));
-
-try
-{
-    var offline = await accounts.CreateOfflineAccountAsync("Player", ct);
-    await accounts.SetDefaultAsync(offline.Id, ct);
-
-    if (args.Contains("--microsoft", StringComparer.Ordinal))
-    {
-        var clientId = Environment.GetEnvironmentVariable("FMCORE_CLIENT_ID")
-            ?? throw new InvalidOperationException("请先配置自己的 FMCORE_CLIENT_ID。");
-        var signedIn = await accounts.LoginMicrosoftAsync(
-            new MicrosoftLoginOptions(clientId),
-            (code, token) =>
-            {
-                token.ThrowIfCancellationRequested();
-                // 前台临时授权提示，不能转发到应用日志、文件或遥测。
-                if (Console.IsOutputRedirected)
-                    throw new InvalidOperationException("请在交互终端显示授权提示。");
-                Console.WriteLine($"请打开 {code.VerificationUri} 并输入 {code.UserCode}");
-                Console.WriteLine($"授权提示过期时间：{code.ExpiresAt:O}");
-                return Task.CompletedTask; // 展示后立即返回，由核心负责轮询。
-            },
-            progress, ct);
-
-        await accounts.SetDefaultAsync(signedIn.Account.Id, ct);
-        // 演示主动刷新；日常启动通常直接调用 GetLaunchIdentityAsync。
-        await accounts.RefreshAsync(signedIn.Account.Id, progress, ct);
-    }
-
-    var snapshot = await accounts.GetAccountsAsync(ct);
-    foreach (var account in snapshot.Accounts)
-        Console.WriteLine($"{account.Id}: {account.Name} ({account.Kind})");
-
-    if (snapshot.SelectedAccountId is Guid selected)
-    {
-        await accounts.SwitchAsync(selected, ct);
-        var identity = await accounts.GetLaunchIdentityAsync(cancellationToken: ct);
-        Console.WriteLine($"启动身份：{identity.Account.Name} / {identity.UserType}");
-        // 将 identity 直接传给 LaunchConfig.Account，由启动器构建参数。
-        // AccessToken / LegacySession 只能在内存中使用，不要打印参数或保存 identity。
-    }
-
-    // 删除通常由 UI 中用户选择触发：
-    // await accounts.DeleteAsync(accountIdToDelete, ct);
-}
-catch (OperationCanceledException) when (ct.IsCancellationRequested)
-{
-    Console.WriteLine("操作已取消。");
-}
-catch (AuthenticationException error)
-{
-    Console.WriteLine($"账号操作失败：{error.Code}，阶段：{error.Stage}，HTTP：{error.StatusCode}，Xbox：{error.XboxError}");
-    // ReauthenticationRequired：提示用户重新登录，不创建离线替代身份。
-}
-```
+独立、可编译的调用代码见[本模块示例](examples.md#authentication)。
 
 WPF/Avalonia/WinUI 应把设备授权提示显示在窗口中，可由用户点击打开 `VerificationUri`；仅在 Microsoft 官方页面输入账号信息。核心不直接打开浏览器或采集密码。回调可能在后台线程执行，宿主须通过自身 Dispatcher 切回 UI，并在完成提示展示后返回，不能在回调内等待登录完成。`DeviceCodeInfo.UserCode` 是短期授权信息，仅展示给当前用户，完成、取消或过期后从界面清除。
 
@@ -160,3 +101,15 @@ Launch 已自动将这些数据用于 `${auth_player_name}`、`${auth_uuid}`、`
 T05 新增 77 项自动化测试：完整请求契约、轮询、拒绝、资格不足、资料缺失、轮换/取消/撤销、UUID、共存/切换/删除/默认账号、并发锁、配置损坏、路径链接、泄漏防护；认证 HTTP 为 Mock，DPAPI 使用本机真实 API 和虚构凭据。T06 全套 402 项通过，并单独执行真实 Microsoft 认证/刷新及正版/离线 1.16.5 启动；真实授权由用户在官方页面完成，令牌只保存为本机 DPAPI 密文。未验证联机或 Linux/macOS 系统密钥环。完整调用示例另从文档提取后单独编译，离线流程实际执行通过。
 
 协议参考：[Microsoft 设备授权](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-device-code)、[Microsoft OAuth 与刷新](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow)、[Xbox 网站认证契约](https://learn.microsoft.com/en-us/gaming/gdk/docs/services/fundamentals/s2s-auth-calls/service-authentication/live-website-authentication)、[RFC 8628](https://www.rfc-editor.org/rfc/rfc8628)、[Microsoft DPAPI 包](https://www.nuget.org/packages/System.Security.Cryptography.ProtectedData/10.0.10)。Minecraft 资格响应兼容性另核对了 [Prism 上游资格请求](https://github.com/PrismLauncher/PrismLauncher/blob/develop/launcher/minecraft/auth/steps/EntitlementsStep.cpp)和[响应解析](https://github.com/PrismLauncher/PrismLauncher/blob/develop/launcher/minecraft/auth/Parsers.cpp)；未借用其 Client ID，亦未以这些资料代替真实账号验证。
+
+## 独立调用示例
+
+- [离线登录](examples/accounts-offline.cs)
+- [正版设备码登录](examples/accounts-microsoft.cs)
+- [账号列表](examples/accounts-list.cs)
+- [切换当前账号](examples/accounts-switch.cs)
+- [持久化默认账号](examples/accounts-default.cs)
+- [刷新身份](examples/accounts-refresh.cs)
+- [获取启动身份](examples/accounts-identity.cs)
+- [删除本地账号](examples/accounts-delete.cs)
+- [授权进度与取消（高级）](examples/accounts-advanced.cs)

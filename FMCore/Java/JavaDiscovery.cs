@@ -16,6 +16,7 @@ internal static class JavaDiscovery
         Under(home, ".jdks", Path.Combine(".sdkman", "candidates", "java"), Path.Combine(".jabba", "jdk"));
         if (OperatingSystem.IsWindows())
         {
+            roots.Add(RuntimeFiles.DefaultDirectory);
             foreach (var programFiles in new[] { Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
                 Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), Environment.GetEnvironmentVariable("ProgramW6432") ?? "" })
                 Under(programFiles, "Java", "Eclipse Adoptium", "Eclipse Foundation", "Microsoft", "Amazon Corretto", "Zulu", "BellSoft", "Semeru");

@@ -5,7 +5,7 @@ using FMCore.Utilities;
 
 namespace FMCore.Installer;
 
-/// <summary>Rebuilds an SDK-owned native directory. Its selection input comes from GameInstaller.CreatePlan.</summary>
+/// <summary>Extracts or checks an SDK-owned native directory using the same bounded archive selection and validation.</summary>
 public sealed class NativeExtractor
 {
     private readonly string root;
@@ -21,6 +21,33 @@ public sealed class NativeExtractor
             throw new ArgumentOutOfRangeException(nameof(options));
     }
 
+    /// <summary>Checks extracted files against validated archive entries without writes or network access. Unexpected extra files are not deletion targets.</summary>
+    public async Task<IReadOnlyList<FileVerificationResult>> VerifyAsync(IReadOnlyList<NativeArchive> archives, string relativeDirectory,
+        IProgress<NativeExtractionProgress>? progress = null, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(archives);
+        var results = new List<FileVerificationResult>();
+        GameFiles.Resolve(root, relativeDirectory);
+        await WalkAsync(archives, async (entry, name, ct) =>
+        {
+            var expected = await ReadEntryAsync(entry, null, ct).ConfigureAwait(false);
+            var relative = relativeDirectory.TrimEnd('/', '\\') + "/" + name;
+            var path = GameFiles.Resolve(root, relative);
+            FileVerificationState state;
+            if (!File.Exists(path)) state = FileVerificationState.Missing;
+            else if (new FileInfo(path).Length != entry.Length) state = FileVerificationState.SizeMismatch;
+            else
+            {
+                await using var file = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, FileOptions.Asynchronous);
+                state = Convert.ToHexString(await SHA256.HashDataAsync(file, ct).ConfigureAwait(false)) == expected
+                    ? FileVerificationState.Valid : FileVerificationState.HashMismatch;
+            }
+            results.Add(new(relative, state));
+            return expected;
+        }, progress, cancellationToken).ConfigureAwait(false);
+        return Array.AsReadOnly(results.DistinctBy(r => r.RelativePath, GameFiles.PathComparer).ToArray());
+    }
+
     public async Task<string> ExtractAsync(IReadOnlyList<NativeArchive> archives, string relativeDirectory,
         IProgress<NativeExtractionProgress>? progress = null, CancellationToken cancellationToken = default)
     {
@@ -33,72 +60,15 @@ public sealed class NativeExtractor
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            foreach (var archive in archives)
-            {
-                var path = GameFiles.Resolve(root, archive.RelativePath);
-                if (!File.Exists(path) || archive.Size is long size && new FileInfo(path).Length != size ||
-                    archive.Sha1 != null && !await GameFiles.HasSha1Async(path, archive.Sha1, archive.Size, cancellationToken).ConfigureAwait(false))
-                    throw Invalid("原生依赖文件缺失或校验失败。");
-                foreach (var exclude in archive.Excludes) DownloadPath.ValidateRelative(exclude.TrimEnd('/', '\\'));
-            }
             if (Directory.Exists(target)) CheckTree(target);
             GameFiles.CreateDirectory(staging);
-            var outputs = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-            var count = 0;
-            long total = 0;
-            progress?.Report(new(0, archives.Count));
-            for (var i = 0; i < archives.Count; i++)
+            await WalkAsync(archives, async (entry, name, ct) =>
             {
-                var archive = archives[i];
-                await using var input = new FileStream(GameFiles.Resolve(root, archive.RelativePath), FileMode.Open, FileAccess.Read, FileShare.Read, 81920, FileOptions.Asynchronous);
-                using var zip = new ZipArchive(input, ZipArchiveMode.Read);
-                var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                foreach (var entry in zip.Entries)
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    var name = entry.FullName;
-                    var directory = name.EndsWith('/') || (entry.ExternalAttributes & (int)FileAttributes.Directory) != 0;
-                    var clean = directory ? name.TrimEnd('/') : name;
-                    if (name.Contains('\\') || !names.Add(clean)) throw Unsafe();
-                    DownloadPath.ValidateRelative(clean);
-                    var unixType = (entry.ExternalAttributes >> 16) & 0xf000;
-                    if (unixType is not (0 or 0x8000 or 0x4000) || (entry.ExternalAttributes & (int)FileAttributes.ReparsePoint) != 0) throw Unsafe();
-                    if (++count > options.MaxEntries || entry.Length > options.MaxEntryBytes || total > options.MaxTotalBytes - entry.Length)
-                        throw new InstallationException(InstallationErrorCode.ArchiveLimitExceeded, "原生依赖压缩包超过条目或解压大小限制。");
-                    total += entry.Length;
-                    // JAR signatures, indexes and module descriptors are not native runtime files.
-                    if (directory || name.StartsWith("META-INF/", StringComparison.OrdinalIgnoreCase) ||
-                        archive.Excludes.Any(prefix => name.StartsWith(prefix.Replace('\\', '/'), StringComparison.Ordinal))) continue;
-                    if (outputs.TryGetValue(clean, out var previous) && previous != clean)
-                        throw new InstallationException(InstallationErrorCode.ConflictingFiles, "原生依赖包含大小写冲突的文件。");
-                    outputs[clean] = clean;
-                    var destination = GameFiles.Resolve(staging, clean);
-                    await GameFiles.WriteAtomicAsync(destination, async (output, ct) =>
-                    {
-                        await using var content = entry.Open();
-                        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-                        var buffer = new byte[81920];
-                        long length = 0;
-                        int read;
-                        while ((read = await content.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
-                        {
-                            length += read;
-                            if (length > entry.Length || length > options.MaxEntryBytes) throw Invalid("原生依赖条目大小无效。");
-                            hash.AppendData(buffer, 0, read);
-                            await output.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
-                        }
-                        if (length != entry.Length) throw Invalid("原生依赖条目内容不完整。");
-                        if (File.Exists(destination))
-                        {
-                            await using var existing = File.OpenRead(destination);
-                            var existingHash = await SHA256.HashDataAsync(existing, ct).ConfigureAwait(false);
-                            if (!hash.GetHashAndReset().AsSpan().SequenceEqual(existingHash))
-                                throw new InstallationException(InstallationErrorCode.ConflictingFiles, "不同原生依赖包含内容冲突的同名文件。");
-                        }
-                    }, cancellationToken).ConfigureAwait(false);
-                }
-                progress?.Report(new(i + 1, archives.Count));
-            }
+                string? hash = null;
+                await GameFiles.WriteAtomicAsync(GameFiles.Resolve(staging, name), async (output, token) =>
+                    hash = await ReadEntryAsync(entry, output, token).ConfigureAwait(false), ct).ConfigureAwait(false);
+                return hash!;
+            }, progress, cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
             DownloadPath.CheckLinks(target);
             if (Directory.Exists(target)) Directory.Move(target, backup);
@@ -110,7 +80,6 @@ public sealed class NativeExtractor
             }
             return target;
         }
-        catch (InvalidDataException) { throw Invalid("原生依赖不是有效的 ZIP/JAR 压缩包。"); }
         catch (DownloadException e) when (e.Code == DownloadErrorCode.UnsafePath) { throw Unsafe(); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         { throw new InstallationException(InstallationErrorCode.IoError, "原生依赖解压或目录替换失败。"); }
@@ -119,6 +88,80 @@ public sealed class NativeExtractor
             DeleteOwnedDirectory(staging);
             if (committed) DeleteOwnedDirectory(backup);
         }
+    }
+
+    // One walker defines archive safety, limits, exclusions and collision rules for both extraction and integrity checks.
+    private async Task WalkAsync(IReadOnlyList<NativeArchive> archives, Func<ZipArchiveEntry, string, CancellationToken, Task<string>> visit,
+        IProgress<NativeExtractionProgress>? progress, CancellationToken ct)
+    {
+        try
+        {
+            foreach (var archive in archives)
+            {
+                ct.ThrowIfCancellationRequested();
+                var path = GameFiles.Resolve(root, archive.RelativePath);
+                if (!File.Exists(path) || archive.Size is long size && new FileInfo(path).Length != size ||
+                    archive.Sha1 != null && !await GameFiles.HasSha1Async(path, archive.Sha1, archive.Size, ct).ConfigureAwait(false))
+                    throw Invalid("原生依赖文件缺失或校验失败。");
+                foreach (var exclude in archive.Excludes) DownloadPath.ValidateRelative(exclude.TrimEnd('/', '\\'));
+            }
+            var outputs = new Dictionary<string, (string Name, string Hash)>(StringComparer.OrdinalIgnoreCase);
+            var count = 0;
+            long total = 0;
+            progress?.Report(new(0, archives.Count));
+            for (var i = 0; i < archives.Count; i++)
+            {
+                var archive = archives[i];
+                await using var input = new FileStream(GameFiles.Resolve(root, archive.RelativePath), FileMode.Open, FileAccess.Read, FileShare.Read, 81920, FileOptions.Asynchronous);
+                using var zip = new ZipArchive(input, ZipArchiveMode.Read);
+                var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var entry in zip.Entries)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    var name = entry.FullName;
+                    var directory = name.EndsWith('/') || (entry.ExternalAttributes & (int)FileAttributes.Directory) != 0;
+                    var clean = directory ? name.TrimEnd('/') : name;
+                    if (name.Contains('\\') || !names.Add(clean)) throw Unsafe();
+                    DownloadPath.ValidateRelative(clean);
+                    var unixType = (entry.ExternalAttributes >> 16) & 0xf000;
+                    if (unixType is not (0 or 0x8000 or 0x4000) || (entry.ExternalAttributes & (int)FileAttributes.ReparsePoint) != 0) throw Unsafe();
+                    if (++count > options.MaxEntries || entry.Length > options.MaxEntryBytes || total > options.MaxTotalBytes - entry.Length)
+                        throw new InstallationException(InstallationErrorCode.ArchiveLimitExceeded, "原生依赖压缩包超过条目或解压大小限制。");
+                    total += entry.Length;
+                    if (directory || name.StartsWith("META-INF/", StringComparison.OrdinalIgnoreCase) ||
+                        archive.Excludes.Any(prefix => name.StartsWith(prefix.Replace('\\', '/'), StringComparison.Ordinal))) continue;
+                    if (outputs.TryGetValue(clean, out var previous) && previous.Name != clean)
+                        throw new InstallationException(InstallationErrorCode.ConflictingFiles, "原生依赖包含大小写冲突的文件。");
+                    var hash = await visit(entry, clean, ct).ConfigureAwait(false);
+                    if (outputs.TryGetValue(clean, out previous) && previous.Hash != hash)
+                        throw new InstallationException(InstallationErrorCode.ConflictingFiles, "不同原生依赖包含内容冲突的同名文件。");
+                    outputs[clean] = (clean, hash);
+                }
+                progress?.Report(new(i + 1, archives.Count));
+            }
+        }
+        catch (InvalidDataException) { throw Invalid("原生依赖不是有效的 ZIP/JAR 压缩包。"); }
+        catch (DownloadException e) when (e.Code == DownloadErrorCode.UnsafePath) { throw Unsafe(); }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        { throw new InstallationException(InstallationErrorCode.IoError, "原生依赖读取或校验失败。"); }
+    }
+
+    private async Task<string> ReadEntryAsync(ZipArchiveEntry entry, Stream? output, CancellationToken ct)
+    {
+        await using var content = entry.Open();
+        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+        var buffer = new byte[81920];
+        long length = 0;
+        int read;
+        while ((read = await content.ReadAsync(buffer, ct).ConfigureAwait(false)) > 0)
+        {
+            length += read;
+            if (length > entry.Length || length > options.MaxEntryBytes) throw Invalid("原生依赖条目大小无效。");
+            hash.AppendData(buffer, 0, read);
+            if (output != null) await output.WriteAsync(buffer.AsMemory(0, read), ct).ConfigureAwait(false);
+        }
+        if (length != entry.Length) throw Invalid("原生依赖条目内容不完整。");
+        return Convert.ToHexString(hash.GetHashAndReset());
     }
 
     private void DeleteOwnedDirectory(string path)
@@ -145,7 +188,6 @@ public sealed class NativeExtractor
             }
         }
     }
-
     private static InstallationException Invalid(string message) => new(InstallationErrorCode.InvalidArchive, message);
     private static InstallationException Unsafe() => new(InstallationErrorCode.UnsafePath, "原生依赖压缩包或解压目录包含不安全的路径、链接或特殊文件。");
 }

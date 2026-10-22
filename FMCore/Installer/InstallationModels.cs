@@ -4,7 +4,7 @@ using FMCore.Versions;
 
 namespace FMCore.Installer;
 
-public enum InstallationStage { Metadata, Client, Libraries, AssetIndex, AssetObjects, AssetLayout, Natives, Logging, Completed, Verification }
+public enum InstallationStage { Metadata, Client, Libraries, AssetIndex, AssetObjects, AssetLayout, Natives, Logging, Completed, Verification, NativeVerification }
 public enum InstallationErrorCode { InvalidMetadata, MissingClient, MissingAssetIndex, MissingNativeClassifier, UnsupportedPlatform, ConflictingFiles, InvalidArchive, ArchiveLimitExceeded, UnsafePath, IoError, InstallationBusy }
 public sealed class InstallationException(InstallationErrorCode code, string message) : Exception(message)
 {
@@ -19,6 +19,8 @@ public sealed record InstallationOptions
     public VersionCachePolicy CachePolicy { get; init; } = VersionCachePolicy.PreferCache;
     public NativeExtractionOptions NativeExtraction { get; init; } = new();
     internal string? NativeDirectory { get; init; }
+    /// <summary>Check extracted native files against the same validated archives used for extraction. Enabled by default.</summary>
+    public bool VerifyNativeFiles { get; init; } = true;
     internal bool VerifyAssetLayouts { get; init; } = true;
 }
 

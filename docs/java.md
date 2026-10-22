@@ -1,6 +1,20 @@
 # T03：Java 检测与选择
 
-公开入口为 `FMCore.Java.JavaManager`，无需新运行时依赖，不下载或安装 Java。
+本手册对应当前源码。每项操作的 using、参数与调用均在独立源码中；编译/运行方式见[示例目录](examples.md)。
+
+## 最简调用
+
+```csharp
+using FMCore.Java;
+
+var javas = await JavaUtil.GetJavasAsync();
+foreach (var java in javas) Console.WriteLine($"{java.Version.Text}: {java.ExecutablePath}");
+```
+
+
+T03 探测入口为 `FMCore.Java.JavaManager`，无需新运行时依赖，本机探测本身不下载或安装 Java。
+
+T14 当前源码新增独立的 `JavaRuntimeUtil`：GetAvailableVersionsAsync 查询官方可下载版本，InstallAsync 显式下载并安装 Temurin / Zulu，返回本手册已有的 JavaRuntime；不重复本机检测或自动推荐 Minecraft 的主版本。默认托管根加入 Windows 有界发现，自定义根通过 SearchDirectories 补充。完整调用、参数、修复/恢复及错误见 [Runtime 手册](java-runtime.md)。
 
 T06 补充 `JavaUtil.GetJavasAsync()` / `GetJavaInfoAsync(path)` 及同步便捷方法；启动器配置 `Java.JavaPath` 支持手动路径优先，自动选择继续复用 JavaManager。最简/高级调用见 [P0 SDK](sdk.md)和 [启动配置](launch.md)。
 
@@ -17,21 +31,7 @@ T06 补充 `JavaUtil.GetJavasAsync()` / `GetJavaInfoAsync(path)` 及同步便捷
 
 最简调用：`var javas = await JavaUtil.GetJavasAsync(cancellationToken: ct)`。手动指定使用 `JavaUtil.GetJavaInfoAsync(path, ct)` 或 `SelectAsync` 的 `customPath`；高级版本选择示例如下。探测失败使用 `JavaException`，调用取消抛 `OperationCanceledException`，完整错误码见文末。
 
-```csharp
-using FMCore.Java;
-using FMCore.Versions;
-
-static async Task<JavaRuntime> ChooseJavaAsync(VersionManager versions, string versionId, CancellationToken ct)
-{
-    var resolved = await versions.ResolveAsync(versionId, cancellationToken: ct);
-    var java = new JavaManager();
-    var progress = new Progress<JavaDetectionProgress>(p =>
-        Console.WriteLine($"Java 检测：{p.Completed}/{p.Total}"));
-    var detected = await java.DetectAsync(progress, ct);
-    // detected.Issues 可用于展示损坏候选；IsTruncated 表示搜索预算用尽。
-    return java.Select(detected.Runtimes, resolved.Metadata);
-}
-```
+独立、可编译的调用代码见[本模块示例](examples.md#java)。
 
 `SelectAsync(metadata, cancellationToken: ct)` 可一次完成检测与选择；`SelectAsync(metadata, customPath: path, cancellationToken: ct)` 只使用指定路径。不兼容或检测失败时返回错误，不会静默改用其他安装。`ProbeAsync(path, ct)` 单独识别 Java；`JavaCompatibility.Check(runtime, metadata, options)` 返回兼容性结果，包含所需主版本、架构及错误码。
 
@@ -73,3 +73,10 @@ Windows / .NET 10 下新增 65 项测试，全套 204 项通过，无失败或�
 - [Oracle 编码说明](https://docs.oracle.com/en/java/javase/24/intl/supported-encodings.html)：标准输出/错误编码属性。
 - [.NET ProcessStartInfo.ArgumentList](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.processstartinfo.argumentlist?view=net-10.0)：独立参数及转义。
 - [.NET Process.Kill](https://learn.microsoft.com/en-us/dotnet/api/system.diagnostics.process.kill?view=net-10.0)：终止进程后的等待及进程树限制。
+
+## 独立调用示例
+
+- [本机 Java 列表](examples/java-list.cs)
+- [探测指定 Java](examples/java-info.cs)
+- [检查用户选择的 Java](examples/java-select.cs)
+- [扫描边界、进度与问题（高级）](examples/java-advanced.cs)

@@ -10,9 +10,18 @@ public sealed record GameCoreInfo(string Id, string? Type, string? MinecraftVers
     JavaRequirement? JavaRequirement, IReadOnlyList<GameLoaderInfo> Loaders, string? ClientJarPath,
     bool HasClientJar, ResolvedVersion? ResolvedVersion, VersionErrorCode? ErrorCode);
 
-/// <summary>Local game inventory. These APIs never download metadata or require an account.</summary>
+/// <summary>官方版本目录与本地游戏信息便捷入口；本地查询不联网，目录查询遵循缓存策略，无需账号。</summary>
 public static class GameCoreUtil
 {
+    /// <summary>查询官方可用版本目录，含正式版、快照及最新版本标识；不安装游戏。</summary>
+    /// <param name="root">元数据缓存所在游戏根目录，默认 .minecraft。</param>
+    /// <param name="cachePolicy">缓存策略；CacheOnly 不联网，Refresh 强制刷新。</param>
+    /// <param name="cancellationToken">取消查询。</param>
+    /// <returns>可直接读取 Versions 与 LatestRelease 的强类型目录。</returns>
+    public static Task<VersionManifest> GetAvailableVersionsAsync(string root = ".minecraft",
+        VersionCachePolicy cachePolicy = VersionCachePolicy.PreferCache, CancellationToken cancellationToken = default) =>
+        new VersionManager(new DownloadManager(root)).GetManifestAsync(cachePolicy, cancellationToken);
+
     /// <summary>Enumerates local versions, retaining invalid entries with their error codes.</summary>
     public static async Task<IReadOnlyList<GameCoreInfo>> GetGameCoresAsync(string root = ".minecraft", CancellationToken cancellationToken = default)
     {
@@ -52,10 +61,18 @@ public static class GameCoreUtil
                 ("net.fabricmc", "fabric-loader") => "Fabric",
                 ("org.quiltmc", "quilt-loader") => "Quilt",
                 ("net.neoforged", "neoforge" or "forge") => "NeoForge",
+                ("net.neoforged.fancymodloader", "loader") => "NeoForge",
+                ("optifine", "OptiFine") => "OptiFine",
                 ("net.minecraftforge", "forge" or "fmlloader") => "Forge",
                 _ => null
             };
             if (name != null && !loaders.Any(l => l.Name == name)) loaders.Add(new(name, coordinate.Version));
+        }
+        var receipt = version.Metadata.ToJson()["fmcoreInstaller"];
+        if (receipt?["name"]?.GetValue<string>() is string installedName && installedName is "Forge" or "NeoForge" or "OptiFine" &&
+            receipt["version"]?.GetValue<string>() is string installedVersion)
+        {
+            loaders.RemoveAll(l => l.Name == installedName); loaders.Add(new(installedName, installedVersion));
         }
         return new(id, version.Metadata.Type, version.InheritanceChain.Count > 1 ? version.InheritanceChain[0] : version.ClientJarId, version.Metadata.MainClass, version.Metadata.Java,
             loaders.AsReadOnly(), path, File.Exists(path) && new FileInfo(path).Length > 0, version, null);

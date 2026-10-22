@@ -1,102 +1,44 @@
-# P0 开发者 API 清单
+# FMCore 开发者使用手册
 
-目标 .NET 10 / C# 14。NuGet 包名为 `FocusMinecraftCore`，首个已发布版本 `0.1.0-preview.2`。执行 `dotnet add package FocusMinecraftCore --version 0.1.0-preview.2` 即可安装；源码开发可使用[本地 NuGet 源](releasing.md)或引用 `FMCore/FMCore.csproj`。程序集仍为 `FMCore.dll`，代码使用 `FMCore.*` 命名空间。项目只包含一个业务核心类库，不依赖 WPF/Avalonia/WinUI，不强制 DI。包包含 `FMCore.xml`，新增入口及主要操作带 XML API 提示，存量模型成员的 XML 说明逐步补充。
+本手册对应 FocusMinecraftCore 1.0.0，目标为 Windows 10/11、.NET 10、C# 14。安装命令为 `dotnet add package FocusMinecraftCore --version 1.0.0`，也可引用核心项目。程序集/命名空间为 `FMCore`，不依赖 CLI、测试或 GUI。
 
-## 入口与兼容性
+## 模块入口
 
-| 模块 / 命名空间 | 简单入口 | 高级配置与结果 |
+| 功能 | 简单入口与返回值 | 使用手册 |
 | --- | --- | --- |
-| Downloader / `FMCore.Downloader` | `new DownloadManager(root)`，`DownloadAsync`、`DownloadManyAsync`、`VerifyAsync` | 原 `DownloadManager(HttpClient, root, options)` 保留；`DownloadRequest`、哈希算法、并发/重试选项、进度与结构化异常 |
-| Versions / `FMCore.Versions` | `GameCoreUtil.GetGameCoresAsync(root)`、`GetGameCoreAsync(id, root)`；同步 `GetGameCores`、`GetGameCore` | `GameCoreInfo` 含有效元数据、基础版本/JAR 来源、加载器识别、Java 要求和错误；`VersionManager` 获取官方列表、缓存和继承 |
-| Java / `FMCore.Java` | `JavaUtil.GetJavasAsync()`、`GetJavaInfoAsync(path)`；同步 `GetJavas`、`GetJavaInfo` | `JavaManager.DetectAsync/SelectAsync` 保留；真实探测、失败候选、扫描边界和兼容性策略 |
-| Installer / `FMCore.Installer` | `new GameInstaller(root)`，`InstallAsync`、`VerifyAsync`、`RepairAsync` | 原下载器构造保留；`InstallationOptions`、计划、阶段/文件进度、完整下载复用及原生/资源布局 |
-| Authentication / `FMCore.Authentication` | `AccountManager` 的 `LoginMicrosoftAsync`、`LoginOfflineAsync`、`GetAccountsAsync`、`SwitchAsync`、`SetDefaultAsync`、`RefreshAsync`、`DeleteAsync` | 原 `CreateOfflineAccountAsync`、`GetLaunchIdentityAsync` 保留；公开资料、安全存储、账号事件、`LaunchIdentity` |
-| Launch / `FMCore.Launch` | `new MinecraftLauncher(LaunchConfig)`，`LaunchAsync`、`WaitForExitAsync`、`StopAsync` | `GameCoreConfig`、`JavaConfig`、`GameWindowConfig`、`LaunchResult`、状态、stdout/stderr 与退出事件、异步释放 |
+| 单文件/批量下载 | DownloadFileAsync / DownloadAsync / DownloadManyAsync → DownloadResult；VerifyAsync → FileVerificationResult | [下载](downloader.md) |
+| 可用/本地/指定版本 | GameCoreUtil.GetAvailableVersionsAsync → VersionManifest；GetGameCoresAsync / GetGameCoreAsync → GameCoreInfo；VersionManager → 元数据与继承 | [版本](versions.md) |
+| 本机 Java | JavaUtil.GetJavasAsync / GetJavaInfoAsync → JavaRuntime；JavaManager → 有界检测/兼容性 | [Java](java.md) |
+| 官方 Java 安装 | JavaRuntimeUtil.GetAvailableVersionsAsync → JavaRuntimeVersion；InstallAsync(主版本或精确对象) → JavaRuntime | [Runtime](java-runtime.md) |
+| 原版安装 | new GameInstaller(root).InstallAsync(versionId) → InstallationResult | [安装](installer.md) |
+| 检查/修复 | VerifyAsync → InstallationCheckResult；RepairAsync 复用安装逻辑 | [完整性](integrity.md) |
+| 账号 | AccountManager.LoginOfflineAsync / LoginMicrosoftAsync / GetLaunchIdentityAsync → LaunchIdentity；账号资料 → AccountSnapshot | [认证](authentication.md) |
+| 启动 | LaunchConfig.Create + MinecraftLauncher.LaunchAsync → LaunchResult；WaitForExitAsync → GameExitResult | [启动](launch.md) |
+| 实例 | InstanceManager.Create/Get/Update/GetInstancesAsync → 不可变 InstanceInfo；DeleteAsync 安全删除 | [实例](instances.md) |
+| 加载器 | FabricInstaller / ForgeInstaller / NeoForgeInstaller / OptiFineInstaller → 安装结果中的 VersionId | [Fabric](fabric.md)、[Forge](forge.md)、[NeoForge](neoforge.md)、[OptiFine](optifine.md) |
+| 平台资源 | ModrinthClient/Installer、CurseForgeClient/Installer → 查询模型、ModInstallResult 与更新候选 | [Modrinth](modrinth.md)、[CurseForge](curseforge.md) |
+| 整合包 | ModpackArchive.ReadAsync → ModpackInfo；ModpackInstaller → 计划、整包事务、确认/回滚/清理 | [整合包](modpacks.md) |
+| 高级设置 | JavaConfig / GameWindowConfig / GameServerConfig；实例可持久化对应设置 | [高级设置](advanced-launch.md) |
+| 日志与诊断 | LauncherLogger.GetEntries/SaveAsync；GameDiagnostics.Analyze → GameDiagnosticReport | [日志](logging.md) |
 
-旧方法签名保留。新增方法组合现有实现，不建立另一套版本、账号或 Java 模型；`LaunchConfig.Account` 直接接收 T05 返回的 `LaunchIdentity`，离线便捷登录也返回同一类型。`InstallationStage.Verification` 追加在已有值之后，已有阶段数值未调整。
+每个已实现主要功能分别提供[独立源码示例](examples.md)，包含必要 using、参数、返回值说明和适用条件。基础调用只给必要参数，高级示例补充配置、进度、取消和错误处理。完整导出类型及成员见[公开 API 清单](public-api.md)。
 
-同步便捷查询会阻塞调用线程，UI 使用 Async 版本。异步 I/O 方法支持取消；进度、状态和错误随具体操作提供。核心默认网络客户端由 SDK 复用，高级调用方仍可提供自己的 HttpClient 配置代理等，不交出该客户端的所有权。
+## 调用约定
 
-## 下载与校验
+下载根目录/版本 ID 在同一流程保持一致。返回的 LaunchIdentity、JavaRuntime 和加载器 VersionId 可以直接接入启动；无需解析字符串重建身份、Classpath 或文件安装计划。账号、Java 主版本、内存预算和系统优化策略由宿主决定。
 
-下面的操作复用官方目录中的已验证 URL/哈希，不需要开发者自己建立另一套版本来源。`ct` 为调用方取消令牌。
+异步、事件、异常、资源所有权与凭据规则见[高级指南](advanced.md)。T10 只增加便捷入口，原公开签名保留；差异和迁移见[API 调整](api-changes.md)。新增 API 时必须同步更新中文手册与独立示例，并重新执行示例编译。
 
-```csharp
-using FMCore.Downloader;
-using FMCore.Versions;
+## 更新边界
 
-var downloads = new DownloadManager(".minecraft");
-var versions = new VersionManager(downloads);
-var catalog = await versions.GetManifestAsync(cancellationToken: ct);
-var entry = catalog.Versions.Single(v => v.Id == "1.16.5");
-var request = new DownloadRequest(entry.Url, "samples/profile.json") { ExpectedHash = entry.Sha1 };
-var progress = new Progress<DownloadProgress>(p => Console.WriteLine($"{p.State}: {p.BytesReceived}"));
-await downloads.DownloadAsync(request, progress, ct);
-await downloads.DownloadManyAsync([
-    request with { RelativePath = "samples/first.json" },
-    request with { RelativePath = "samples/second.json" }
-], progress, ct);
-var check = await downloads.VerifyAsync(request, ct);
-```
+`CheckUpdatesAsync` 检查一组托管 Mod，不修改文件；`UpdateAsync(projectId)` 更新单个项目及必要依赖。逐项调用是独立事务，后项失败不会撤销前项。没有通用跨 Mod 原子批量执行或单 Mod 历史回滚 API。
 
-`VerifyAsync` 无网络/写入；报告缺失、大小错误、哈希错误、有效或 `Unverified`。`Unverified` 表示未给大小或哈希，只能确认文件存在，不能作为完整性保证。正常原版文件使用官方大小/哈希。下载失败后已完成的有效文件可复用，未完成文件保留原子替换边界；不把批次当作事务。
+整合包使用 `GetUpdatePlanAsync / UpdateAsync` 独立入口，内部负责包级变更、冲突、备份、恢复和主动回滚。包内单 Mod 使用 `CheckModUpdatesAsync / UpdateModAsync` 并明确授权；确认正常使用后才能清理备份。
 
-## 版本与 Java
+## 完整源码架构
 
-```csharp
-using FMCore.Java;
-using FMCore.Versions;
+独立章节：[完整源码目录、模块依赖及调用流程](architecture.md)。
 
-var cores = await GameCoreUtil.GetGameCoresAsync(".minecraft", ct);
-var core = await GameCoreUtil.GetGameCoreAsync("1.16.5", ".minecraft", ct);
-var javas = await JavaUtil.GetJavasAsync(cancellationToken: ct);
-var java = await new JavaManager().SelectAsync(core.ResolvedVersion!.Metadata,
-    customPath: Environment.GetEnvironmentVariable("FMCORE_JAVA"), cancellationToken: ct);
-var actual = await JavaUtil.GetJavaInfoAsync(java.ExecutablePath, ct);
-```
+## 完整项目示例
 
-GameCoreUtil 只查本地，不安装游戏。列表保留损坏 profile 的错误信息；单个查询对缺失/损坏抛出结构化异常。加载器由现有 Libraries 坐标识别为 Fabric/Forge/NeoForge/Quilt，不代表已安装完整或已实机验证。`MinecraftVersion` 表示可确定的基础 profile/JAR 来源 ID；完整继承链与原始扩展元数据仍保留在 `ResolvedVersion`。
-
-自动 Java 严格匹配元数据要求和目标架构；手动路径优先，但也必须兼容。高级调用可传 `JavaSelectionOptions`、`JavaDetectionOptions`，仅当元数据缺要求时使用显式 `FallbackMajorVersion`。示例中的同步别名可用于控制台简短查询，GUI 避免在界面线程阻塞探测。
-
-## 安装、检查与修复
-
-```csharp
-using FMCore.Installer;
-
-var installer = new GameInstaller(".minecraft");
-var progress = new Progress<InstallationProgress>(p =>
-    Console.WriteLine($"{p.Stage}: {p.CompletedFiles}/{p.TotalFiles}"));
-var installed = await installer.InstallAsync("1.16.5", progress: progress, cancellationToken: ct);
-var check = await installer.VerifyAsync("1.16.5", progress: progress, cancellationToken: ct);
-if (!check.IsValid)
-    await installer.RepairAsync("1.16.5", progress: progress, cancellationToken: ct);
-```
-
-高级调用传 `InstallationOptions` 指定目标规则上下文、相对游戏目录和缓存策略；也可复用自定义下载器构造安装器。Verify 默认仅使用缓存，检查客户端、Libraries/原生压缩包、资源索引/对象、日志配置和声明的旧版布局副本。缺索引时 `AssetsChecked=false`，不报告检查通过。它不检查存档、Mod、全部 Java 类是否可执行或解压后的 native 文件内容；修复会重新安全解压，Launch 每次也生成私有 native 目录。检查仍遵循元数据可提供的校验强度。
-
-## 账号与启动
-
-离线最短调用为 `await accounts.LoginOfflineAsync("Player", ct)`；正版调用使用自己的 Client ID 和前台设备码提示，完整代码见 [账号文档](authentication.md)。两种身份可在同一管理器中共存，刷新失败不自动降级。`SwitchAsync` 为本管理器当前选择，`SetDefaultAsync` 持久化下次默认选择。
-
-```csharp
-using FMCore.Authentication;
-
-using var accounts = new AccountManager(accountDirectory);
-var offline = await accounts.LoginOfflineAsync("Player", ct);
-var list = await accounts.GetAccountsAsync(ct);
-await accounts.SwitchAsync(offline.Account.Id, ct);
-await accounts.SetDefaultAsync(offline.Account.Id, ct);
-var identity = await accounts.GetLaunchIdentityAsync(cancellationToken: ct);
-// UI 明确要求删除时：await accounts.DeleteAsync(accountId, ct);
-```
-
-将 `identity` 直接传给 `LaunchConfig.Account`，不读取令牌并拼参数。可同时传 `Accounts = accounts` 在启动前刷新；也可只传 Accounts，使用当前所选账号。完整可编译的最简和高级启动流程见 **[启动示例](launch.md)**；高级示例包含正版授权、离线选择、Java、内存、实例、窗口、状态、日志、退出和停止。
-
-## 验收记录
-
-T06 Windows 自动化 **402 项通过**（新增 57 项）。真实子进程测试覆盖双路大量输出、退出码、停止及子进程树、取消准备、等待取消、实例并行/互斥、原生清理和日志过滤；协议/文件测试明确使用 Mock。
-
-另外在仓库外建立仅引用 FMCore 的调用方程序，未使用测试友元或内部 API：真实本机 HTTP 完成单/批量 3 次下载及 SHA-256 校验；真实枚举本地版本、Java 探测与选择、校验 2,640 个原版文件、修复复用 2,640 个文件且零下载；验证离线账号创建/切换/默认/刷新/删除。通过真实 Microsoft 授权与刷新，分别用正版和离线账号启动 1.16.5 并观察窗口/音频/纹理初始化。这是 T06 的历史实机验证范围，详细记录保留在维护者本地。
-
-最简、高级完整示例从文档提取并独立编译；局部代码片段中的 `ct`、`accountDirectory` 由调用方提供。首版发布前另通过独立 NuGet 包引用验收和 14 段 C# 示例编译；内部测试和验收脚本不随公开仓库分发。未实际验证 Linux/macOS、其他游戏版本、加载器、世界或多人服务器。源码构建和后续发布流程见[发布与更新手册](releasing.md)。
+独立章节：[可运行的 .NET 10 C# 控制台 Minecraft 启动器](sample-launcher.md)，包含项目结构、完整源代码、项目引用、运行命令及正版/联网条件。此综合项目与各功能独立示例分开维护。

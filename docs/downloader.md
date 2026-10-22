@@ -1,5 +1,18 @@
 # T01 下载管理
 
+本手册对应当前源码。每项操作的 using、参数与调用均在独立源码中；编译/运行方式见[示例目录](examples.md)。
+
+## 最简调用
+
+```csharp
+using FMCore.Downloader;
+
+var url = Environment.GetEnvironmentVariable("FMCORE_URL") ?? throw new InvalidOperationException("请设置 FMCORE_URL。");
+var result = await DownloadManager.DownloadFileAsync(url, "downloads/file.bin");
+Console.WriteLine(result.FullPath);
+```
+
+
 命名空间：`FMCore.Downloader`。核心没有新增第三方运行时依赖。
 
 T06 补充 `new DownloadManager(root)` 默认网络入口和不联网的 `VerifyAsync`，原 HttpClient 构造与下载签名保留。最简/高级组合示例见 [P0 SDK](sdk.md)。
@@ -20,27 +33,7 @@ T06 补充 `new DownloadManager(root)` 默认网络入口和不联网的 `Verify
 
 下面的方法展示单文件下载，`source`、`sha1`、`size` 应由可信元数据提供。下载管理器自身不获取 Minecraft 版本元数据。
 
-```csharp
-using FMCore.Downloader;
-
-// 在应用启动时创建并复用；应用退出时再释放 http。
-using var http = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
-var downloader = new DownloadManager(http, Path.Combine(AppContext.BaseDirectory, ".fmcore"),
-    new DownloadOptions { MaxConcurrency = 8, MaxRetries = 3 });
-
-Task<DownloadResult> DownloadClientAsync(Uri source, string sha1, long size, CancellationToken ct)
-{
-    var request = new DownloadRequest(source, "versions/example/client.jar")
-    {
-        ExpectedHash = sha1,
-        HashAlgorithm = DownloadHashAlgorithm.Sha1,
-        ExpectedSize = size
-    };
-    var progress = new Progress<DownloadProgress>(p =>
-        Console.WriteLine($"{p.RelativePath}: {p.BytesReceived}/{p.TotalBytes} ({p.State})"));
-    return downloader.DownloadAsync(request, progress, ct);
-}
-```
+独立、可编译的调用代码见[本模块示例](examples.md#downloader)。
 
 `DownloadManyAsync` 接受请求集合，按输入顺序返回结果。整个批次先检查参数和重复目标，再开始下载。批次失败时会取消仍在执行的工作，已完成文件保留；它不是整个安装流程的事务。
 
@@ -105,3 +98,17 @@ Windows / .NET 10 下共 64 项测试通过，无失败或跳过：
 - [Microsoft：ResponseHeadersRead 与内容读取超时](https://learn.microsoft.com/en-us/dotnet/api/system.net.http.httpcompletionoption?view=net-10.0)
 - [Microsoft：IncrementalHash](https://learn.microsoft.com/en-us/dotnet/api/system.security.cryptography.incrementalhash?view=net-10.0)
 - [Microsoft：File.Move](https://learn.microsoft.com/en-us/dotnet/api/system.io.file.move?view=net-10.0)
+
+T09-C–E 新增 DownloadRequest.LocalOnly（默认 false）：仅校验/复用生成文件，必须提供 ExpectedHash，绝不联网，缺失/损坏返回 DownloadErrorCode.LocalFileUnavailable。VerifyAsync 对相同请求仍按原规则返回缺失/损坏状态；不要将 about:blank 作为远程下载源。
+
+## 独立调用示例
+
+- [单文件直接下载](examples/download-file.cs)
+- [校验、进度与取消（高级）](examples/download-advanced.cs)
+- [批量下载](examples/download-batch.cs)
+- [仅校验本地文件](examples/download-verify.cs)
+- [已有根目录直接下载 URL](examples/download-relative.cs)
+
+## T10 便捷入口
+
+`DownloadManager.DownloadFileAsync(url, destinationPath)` 以目标父目录为安全根，返回原有 DownloadResult。目标可为绝对或相对文件路径；不放宽路径、URL 或重定向检查。`downloads.DownloadAsync(url, relativePath)` 在现有下载根内直接下载。需要哈希/大小时继续使用 DownloadRequest；无校验元数据时不跳过已有文件。
