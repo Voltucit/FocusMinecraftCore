@@ -4,9 +4,8 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 已通过本地完整验收并创建 Tag 的版本号
+        description: 输入并并创建 Tag 的版本号
         required: true
-        default: 1.0.0
       confirmation:
         description: 输入 publish FocusMinecraftCore 加空格和版本号，确认公开发布
         required: true
