@@ -24,30 +24,50 @@ public sealed class InstanceManager
         });
     }
 
-    /// <summary>Creates an instance with default settings and a generated ID; does not install game files.</summary>
+    /// <summary>使用启动版本 ID 作为默认目录名，在根目录的 versions 下创建实例；不下载游戏文件。</summary>
     public Task<InstanceInfo> CreateAsync(string name, string versionId, CancellationToken cancellationToken = default)
         => CreateAsync(new() { Name = name, VersionId = versionId }, cancellationToken: cancellationToken);
 
-    /// <summary>Creates persistent settings and an isolated directory. An optional safe lowercase ID is independent of the display name and version.</summary>
+    /// <summary>在 versions 下创建持久化实例；可选 instanceId 是目录名，默认取 VersionId，与启动版本分别管理。</summary>
     /// <exception cref="InstanceException">InvalidConfig, UnsafePath, AlreadyExists, Busy or IoError.</exception>
     public Task<InstanceInfo> CreateAsync(InstanceConfig config, string? instanceId = null, CancellationToken cancellationToken = default) => GuardAsync(async () =>
     {
         cancellationToken.ThrowIfCancellationRequested();
         var frozen = InstanceFiles.Freeze(config);
-        var id = InstanceFiles.Id(instanceId ?? Guid.NewGuid().ToString("N"));
+        var id = InstanceFiles.Id(instanceId ?? frozen.VersionId);
+        InstanceFiles.EnsureCurrentLayout(RootDirectory, id);
         var relative = Relative(id);
         var directory = GameFiles.Resolve(RootDirectory, relative);
         using var lease = InstanceLock.Acquire(RootDirectory, relative);
-        if (Path.Exists(directory)) throw new InstanceException(InstanceErrorCode.AlreadyExists, "实例目标目录已存在，不会覆盖或接管现有目录。");
+        var attachRuntime = Directory.Exists(directory) && await InstanceFiles.CanAttachRuntimeAsync(directory, id, cancellationToken).ConfigureAwait(false);
+        if (Path.Exists(directory) && !attachRuntime) throw new InstanceException(InstanceErrorCode.AlreadyExists, "实例目标目录已存在，不会覆盖托管实例或接管含有未知游戏数据的目录。");
         var now = DateTimeOffset.UtcNow;
         var document = new InstanceDocument(1, id, Guid.NewGuid(), now, now, frozen);
-        var temporary = GameFiles.Resolve(RootDirectory, $"instances/.fmcore-create-{Guid.NewGuid():N}");
+        var temporary = GameFiles.Resolve(RootDirectory, $"versions/.fmcore-create-{Guid.NewGuid():N}");
         try
         {
             await InstanceFiles.WriteAsync(temporary, document, cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
             GameFiles.Resolve(RootDirectory, relative);
-            Directory.Move(temporary, directory);
+            if (attachRuntime)
+            {
+                var target = GameFiles.Resolve(directory, InstanceFiles.Metadata);
+                var control = Path.GetDirectoryName(target)!;
+                try
+                {
+                    GameFiles.CreateDirectory(control);
+                    File.Move(GameFiles.Resolve(temporary, InstanceFiles.Metadata), target); // Never overwrite an existing instance configuration.
+                }
+                catch
+                {
+                    // A failed attachment must not leave an empty control directory that prevents retry.
+                    // Non-recursive removal preserves any configuration or concurrent files that appeared.
+                    try { Directory.Delete(GameFiles.Resolve(directory, ".fmcore")); }
+                    catch (Exception e) when (e is IOException or UnauthorizedAccessException or DownloadException) { }
+                    throw;
+                }
+            }
+            else Directory.Move(temporary, directory);
             return Info(document, directory, false);
         }
         finally
@@ -68,7 +88,8 @@ public sealed class InstanceManager
     public Task<IReadOnlyList<InstanceInfo>> GetInstancesAsync(CancellationToken cancellationToken = default) => GuardAsync<IReadOnlyList<InstanceInfo>>(async () =>
     {
         cancellationToken.ThrowIfCancellationRequested();
-        var parent = GameFiles.Resolve(RootDirectory, "instances");
+        InstanceFiles.CheckLegacyInstances(RootDirectory);
+        var parent = GameFiles.Resolve(RootDirectory, "versions");
         if (!Directory.Exists(parent)) return Array.Empty<InstanceInfo>();
         var results = new List<InstanceInfo>();
         foreach (var directory in Directory.EnumerateDirectories(parent).Order(StringComparer.Ordinal))
@@ -90,6 +111,7 @@ public sealed class InstanceManager
     {
         cancellationToken.ThrowIfCancellationRequested();
         var id = InstanceFiles.Id(instanceId);
+        InstanceFiles.EnsureCurrentLayout(RootDirectory, id);
         var directory = GameFiles.Resolve(RootDirectory, Relative(id));
         var document = await InstanceFiles.ReadAsync(directory, id, cancellationToken).ConfigureAwait(false);
         return Info(document, directory, InstanceLock.IsInUse(RootDirectory, Relative(id)));
@@ -120,7 +142,7 @@ public sealed class InstanceManager
         return Info(document, directory, false);
     });
 
-    /// <summary>Deletes only the identified managed directory. Shared versions/libraries/assets and sibling instances are never deletion targets.</summary>
+    /// <summary>删除指定托管实例的游戏数据和配置；保留同目录版本 JSON、客户端 JAR、natives，以及共享 libraries/assets 和兄弟实例。</summary>
     /// <remarks>Preflight rejects all links before deleting any data. Mid-deletion cancellation/failure may leave partial data; the configuration is removed last to support retry. Final cleanup I/O failure can leave an unmanaged empty directory.</remarks>
     /// <exception cref="InstanceException">Busy, NotFound, UnsafePath, StorageCorrupted or IoError. Unmanaged/corrupt directories are never adopted for deletion.</exception>
     public async Task DeleteAsync(string instanceId, IProgress<InstanceDeletionProgress>? progress = null, CancellationToken cancellationToken = default)
@@ -129,6 +151,7 @@ public sealed class InstanceManager
         {
             cancellationToken.ThrowIfCancellationRequested();
             var id = InstanceFiles.Id(instanceId);
+            InstanceFiles.EnsureCurrentLayout(RootDirectory, id);
             var directory = GameFiles.Resolve(RootDirectory, Relative(id));
             using var lease = InstanceLock.Acquire(RootDirectory, Relative(id));
             // Respect the previous launch lock too; release its file handle before Windows directory deletion.
@@ -152,10 +175,12 @@ public sealed class InstanceManager
     {
         if (instance == null || !GameFiles.PathComparer.Equals(RootDirectory, instance.RootDirectory))
             throw new InstanceException(InstanceErrorCode.InvalidConfig, "实例快照不属于此游戏根目录。");
+        if (!GameFiles.PathComparer.Equals(instance.GameDirectory, GameFiles.Resolve(RootDirectory, Relative(instance.Id))))
+            throw new InstanceException(InstanceErrorCode.Conflict, "实例目录布局已改变，请迁移后重新读取快照。");
     }
     private InstanceInfo Info(InstanceDocument document, string directory, bool busy) => new(document.Id, RootDirectory, directory,
         document.Config, document.Revision, document.CreatedAt, document.UpdatedAt, busy);
-    private static string Relative(string id) => "instances/" + id;
+    private static string Relative(string id) => InstanceFiles.Relative(id);
     private static InstanceException Conflict() => new(InstanceErrorCode.Conflict, "实例配置已变化，请重新读取后操作。");
 
     private static T Guard<T>(Func<T> operation)

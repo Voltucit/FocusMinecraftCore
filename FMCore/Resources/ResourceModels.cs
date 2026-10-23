@@ -28,7 +28,33 @@ public sealed record ModrinthSearchOptions
 }
 
 /// <summary>Public project information, without authentication or raw response data.</summary>
-public sealed record ModrinthProject(string Id, string Slug, string Title, string Description, string ProjectType);
+public sealed record ModrinthProject(string Id, string Slug, string Title, string Description, string ProjectType)
+{
+    /// <summary>官方 icon_url；缺失或地址不安全时为 null。SDK 不请求图片。</summary>
+    public Uri? IconUrl { get; init; }
+    /// <summary>详情中的图片图库；搜索响应未提供图库时为空。</summary>
+    public IReadOnlyList<ResourceImage> Gallery { get; init; } = [];
+}
+/// <summary>平台提供的展示图片。图片显示、下载及界面缓存由宿主负责，不附加认证信息。</summary>
+public sealed record ResourceImage(Uri Url)
+{
+    /// <summary>平台提供的缩略图，可为 null。</summary>
+    public Uri? ThumbnailUrl { get; init; }
+    /// <summary>图片标题，可为 null。</summary>
+    public string? Title { get; init; }
+    /// <summary>图片说明，可为 null。</summary>
+    public string? Description { get; init; }
+    /// <summary>平台图片 ID；仅部分平台提供。</summary>
+    public int? Id { get; init; }
+    /// <summary>Modrinth 推荐展示标记。</summary>
+    public bool Featured { get; init; }
+    /// <summary>Modrinth 图片创建时间。</summary>
+    public DateTimeOffset? CreatedAt { get; init; }
+    /// <summary>Modrinth 图片排序值。</summary>
+    public int? Ordering { get; init; }
+    /// <summary>避免诊断输出包含图片地址的查询字符串。</summary>
+    public override string ToString() => "Resource image";
+}
 /// <summary>One search page.</summary>
 public sealed record ModrinthSearchResult(IReadOnlyList<ModrinthProject> Hits, int Offset, int Limit, int TotalHits);
 /// <summary>Dependency semantics published by Modrinth.</summary>

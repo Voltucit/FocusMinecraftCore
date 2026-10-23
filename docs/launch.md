@@ -1,6 +1,6 @@
 # 原版启动
 
-本手册对应 1.0.0。每项操作的 using、参数与调用均在独立源码中；编译/运行方式见[示例目录](examples.md)。
+本手册对应当前源码。目录布局调整尚未发布，已发布包请以对应 Tag 的文档为准。每项操作的 using、参数与调用均在独立源码中；编译/运行方式见[示例目录](examples.md)。
 
 ## 最简调用
 
@@ -64,7 +64,7 @@ WPF、Avalonia、WinUI 使用相同配置与调用。`Progress<T>` 可在 UI 线
 | 配置 | 默认与含义 |
 | --- | --- |
 | `GameCore.RootDirectory` / `VersionId` | 当前目录下 `.minecraft` / 必须指定有效版本 ID |
-| `Isolate` / `InstanceId` | 默认隔离，工作目录为 `instances/<InstanceId 或 VersionId>` |
+| `Isolate` / `InstanceId` | 默认隔离，工作目录为 `versions/<InstanceId 或 VersionId>` |
 | `GameDirectory` | 显式指定相对根目录的工作目录，优先于自动隔离；拒绝越界和目录链接 |
 | `AutoInstall` | 默认 `true`，自动下载/修复；`false` 仅使用缓存元数据与本地下载文件，仍生成实例目录、原生依赖和旧版资源映射 |
 | `CachePolicy` | 自动安装时默认 `PreferCache`；本地启动使用 `CacheOnly` |
@@ -80,7 +80,7 @@ WPF、Avalonia、WinUI 使用相同配置与调用。`Progress<T>` 可在 UI 线
 
 BootstrapLauncher 的元数据 ignoreList 会补充实际继承客户端文件名，避免原版与处理器生成的 Minecraft 模块重复；不改写 version_name。
 
-版本继承、规则和客户端选择直接消费 Versions 模型；同时具有普通 artifact 与 native classifier 的库会保留两者。Java 主版本严格匹配元数据，不把更高主版本当作兼容替代。已安装加载器 profile 通过版本 ID 复用相同启动逻辑。T06 当时未安装或实测加载器；后续 T09-A 当前源码已真实离线验证 1.16.5 / Fabric Loader 0.19.5 / Java 8，完整组合、安装入口和验收边界见 [Fabric 手册](fabric.md)。T09-C–E 也已分别通过 [Forge](forge.md)、[NeoForge](neoforge.md)、[OptiFine](optifine.md) 的真实离线验收；Quilt 已取消。
+版本继承、规则和客户端选择直接消费 Versions 模型；同时具有普通 artifact 与 native classifier 的库会保留两者。Java 主版本严格匹配元数据，不把更高主版本当作兼容替代。已安装加载器 profile 通过版本 ID 复用相同启动逻辑。T06 当时未安装或实测加载器；后续 T09-A 当前源码已真实离线验证 1.16.5 / Fabric Loader 0.19.5 / Java 8，完整组合、安装入口和验收边界见 [Fabric 手册](fabric.md)。T09-C–E 也已分别通过 [Forge](forge.md)、[NeoForge](neoforge.md)、[OptiFine](optifine.md) 的真实离线验收；Quilt 自动安装阶段曾取消；1.0.2 通用读取已有 Quilt 元数据的能力与自动安装器分开，详见文末。
 
 原生解压目录为共享根下 `.fmcore/launch/<随机 ID>/natives`，每次启动独立，进程退出后清理；设置、存档、游戏日志留在实例工作目录。相同工作目录有进程生命周期锁，第二个启动返回 `InstanceBusy`，不同实例可并行。实例隔离不等于本阶段实现完整实例导入、删除、备份管理。
 
@@ -119,3 +119,17 @@ T14 当前源码可在调用方明确请求后，先通过 JavaRuntimeUtil.Insta
 ## T10 简单启动配置
 
 `LaunchConfig.Create(versionId, rootDirectory, account, java, maxMemoryMb, minMemoryMb = 0)` 直接接收 LaunchIdentity 与 JavaRuntime，返回原有 LaunchConfig；账号、Java 与最大内存均需明确传入。最小内存默认 0 省略 Xms，原构造/属性默认值不变。高级设置用 with 继续配置；启动器执行相同校验，不创建第二套启动引擎。
+
+目录名称、启动版本 ID、共享资源和旧目录迁移规则见[目录管理](directory-layout.md)。
+
+## 1.0.2 维护候选：已有版本通用启动
+
+LaunchConfig.GameCore.VersionId 使用查询结果的 Id（实际版本文件夹名），不要求与 JSON id 同名。未知加载器不会触发“加载器不支持”拒绝；仍需有效主类、参数、客户端、依赖及资源。
+
+外部目录优先使用 AutoInstall=false 检查并复用本地文件。Isolate=false 将工作目录设为根目录；GameDirectory 可显式给出根目录内的相对路径，空字符串也是根目录。已有 instances 或其他自定义布局通过此显式工作目录继续使用，不强制迁移。自动新建隔离目录继续是 versions/<InstanceId 或 VersionId>。
+
+gameDir 和身份等受控参数按宿主配置生成，即使旧 JSON 使用硬编码路径也不修改 JSON。Classpath/模块路径/Java agent 仍必须位于选定根目录内；不接受通过 @参数文件、-jar 或另一模块入口绕过所选主类。原版 legacy 资源布局和多条 tweakClass 保持有效。
+
+缺少本地下载地址时可以复用已有客户端/依赖，缺少发布者哈希时 VerifyAsync 会如实返回 Unverified；安全路径、已声明的大小/哈希、资源对象和 ZIP 边界仍校验。自动启动不会覆盖校验不符的外部文件；明确的 InstallAsync/RepairAsync 属于写入/修复操作。缺失依赖的相对路径和状态写入脱敏日志/诊断。Java 要求缺失时由宿主明确配置 FallbackMajorVersion，不自动推荐或下载 Java。
+
+完整独立代码：[已有版本启动](examples/external-version-launch.cs)，要求宿主/用户先信任版本来源。范围和限制见[兼容说明](compatibility.md)。

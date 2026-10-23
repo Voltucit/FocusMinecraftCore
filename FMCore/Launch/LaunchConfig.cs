@@ -17,9 +17,9 @@ public sealed record GameCoreConfig
     public string RootDirectory { get; init; } = ".minecraft";
     /// <summary>The installed or official version ID, for example 1.16.5.</summary>
     public string VersionId { get; init; } = "";
-    /// <summary>Use instances/{InstanceId or VersionId} for settings, saves and logs. Enabled by default.</summary>
+    /// <summary>默认使用 versions/{InstanceId 或 VersionId} 存放游戏数据；版本元数据、libraries 和 assets 按根目录共享。</summary>
     public bool Isolate { get; init; } = true;
-    /// <summary>Optional safe instance name; defaults to VersionId.</summary>
+    /// <summary>可选安全目录名，默认取 VersionId；不会改变实际启动版本。</summary>
     public string? InstanceId { get; init; }
     /// <summary>Explicit working directory relative to RootDirectory; overrides automatic isolation.</summary>
     public string? GameDirectory { get; init; }
@@ -108,7 +108,7 @@ public sealed record LaunchConfig
     /// <summary>Launcher brand substituted in official metadata.</summary>
     public string LauncherName { get; init; } = "FMCore";
     /// <summary>Launcher version substituted in official metadata.</summary>
-    public string LauncherVersion { get; init; } = "1.0.0";
+    public string LauncherVersion { get; init; } = "1.0.2";
     /// <summary>Does not expose accounts or custom launch arguments.</summary>
     public override string ToString() => "Minecraft launch configuration";
 }

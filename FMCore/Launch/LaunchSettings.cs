@@ -169,7 +169,7 @@ internal static partial class LaunchSettings
             if (version.Metadata.Arguments.Game.Any(a => a.Values.Any(v => v.Split('=')[0] == "--quickPlayMultiplayer") &&
                 RuleEvaluator.IsAllowed(a.Rules, context with { Features = features })))
                 result.AddRange(["--quickPlayMultiplayer", Endpoint(server)]);
-            else if (LegacyServerSupported(version.ClientJarId)) result.AddRange(["--server", server.Host, "--port", server.Port.ToString(CultureInfo.InvariantCulture)]);
+            else if (LegacyServerSupported(version.ClientJarRelativePath == null ? version.ClientJarId : version.MinecraftVersion ?? version.ClientJarId)) result.AddRange(["--server", server.Host, "--port", server.Port.ToString(CultureInfo.InvariantCulture)]);
             else throw new LaunchException(LaunchErrorCode.UnsupportedGameSettings, "版本未声明 Quick Play，也不是可识别的旧版客户端；不能安全选择服务器启动参数。");
         }
         result.AddRange(extra.Select(expand));

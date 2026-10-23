@@ -107,6 +107,7 @@ public sealed class MinecraftLauncher : IAsyncDisposable
             var versions = new VersionManager(downloads);
             var policy = config.GameCore.AutoInstall ? config.GameCore.CachePolicy : VersionCachePolicy.CacheOnly;
             var version = await versions.ResolveAsync(config.GameCore.VersionId, policy, ct).ConfigureAwait(false);
+            foreach (var warning in version.Warnings) Logger.Write(LogLevel.Warning, warning);
             progress?.Report(new(LaunchStage.Java));
             var java = await javas.SelectAsync(version.Metadata, config.Java.JavaPath, config.Java.Selection, cancellationToken: ct).ConfigureAwait(false);
             if (java.Architecture is JavaArchitecture.X86 or JavaArchitecture.Arm32 && config.Java.MaxMemoryMb > 1536)
@@ -126,7 +127,8 @@ public sealed class MinecraftLauncher : IAsyncDisposable
                 Context = java.GetRuleContext(features),
                 CachePolicy = policy,
                 GameDirectory = game,
-                NativeDirectory = privateDirectory + "/natives"
+                NativeDirectory = privateDirectory + "/natives",
+                PreserveCustomFiles = true
             };
             var installer = new GameInstaller(downloads, versions);
             var installProgress = new InlineProgress<InstallationProgress>(p => progress?.Report(new(LaunchStage.Installation, p)));
@@ -137,7 +139,11 @@ public sealed class MinecraftLauncher : IAsyncDisposable
             else
             {
                 var check = await installer.VerifyAsync(config.GameCore.VersionId, options with { VerifyAssetLayouts = false, VerifyNativeFiles = false }, installProgress, ct).ConfigureAwait(false);
-                if (!check.IsValid) throw new LaunchException(LaunchErrorCode.MissingFiles, "游戏文件缺失或损坏，请修复安装或启用 AutoInstall。");
+                if (!check.IsValid)
+                {
+                    foreach (var problem in check.Problems.Take(20)) Logger.Write(LogLevel.Warning, $"依赖校验失败：{problem.RelativePath} ({problem.State})");
+                    throw new LaunchException(LaunchErrorCode.MissingFiles, "游戏文件缺失或损坏，请查看依赖校验日志并修复原安装。");
+                }
                 var plan = installer.CreatePlan(check.Version, options);
                 var nativeDirectory = await new NativeExtractor(root).ExtractAsync(plan.NativeArchives, plan.NativeDirectory, cancellationToken: ct).ConfigureAwait(false);
                 var assets = new AssetManager(downloads);
@@ -175,6 +181,8 @@ public sealed class MinecraftLauncher : IAsyncDisposable
         catch (OperationCanceledException) { SetState(LaunchState.Canceled); throw; }
         catch (Exception error) when (error is not ObjectDisposedException)
         {
+            if (error is DownloadException { RelativePath: { } relative } download)
+                Logger.Write(LogLevel.Warning, $"依赖下载/校验失败：{relative} ({download.Code})");
             var failure = Failure(error);
             SetState(LaunchState.Failed, failure);
             var diagnostic = GameDiagnostics.Analyze(Logger.GetEntries(), launchError: failure) with { DroppedEntries = Logger.DroppedEntries };
@@ -305,7 +313,9 @@ public sealed class MinecraftLauncher : IAsyncDisposable
     private string GameDirectory()
     {
         var game = config.GameCore;
-        var relative = game.GameDirectory ?? (game.Isolate ? "instances/" + VersionParser.Id(game.InstanceId ?? game.VersionId) : "");
+        var id = game.InstanceId ?? game.VersionId;
+        if (game.GameDirectory == null && game.Isolate) InstanceFiles.EnsureCurrentLayout(downloads.RootDirectory, id);
+        var relative = game.GameDirectory ?? (game.Isolate ? InstanceFiles.Relative(id) : "");
         if (relative.Length != 0) GameFiles.Resolve(downloads.RootDirectory, relative);
         return relative.Replace('\\', '/').TrimEnd('/');
     }
@@ -364,12 +374,12 @@ public sealed class MinecraftLauncher : IAsyncDisposable
         LaunchException e => new(e.Code, e.Message),
         InstanceException e => new(e.Code == InstanceErrorCode.Busy ? LaunchErrorCode.InstanceBusy : LaunchErrorCode.InvalidConfig,
             "实例被占用、已删除或配置发生变化，请重新读取实例。", e.Code.ToString()),
-        VersionException e => new(LaunchErrorCode.VersionError, "版本元数据处理失败。", e.Code.ToString()),
+        VersionException e => new(LaunchErrorCode.VersionError, e.Message, e.Code.ToString()),
         JavaException e => new(LaunchErrorCode.JavaError, "Java 检测或兼容性检查失败。", e.Code.ToString()),
         AuthenticationException e => new(LaunchErrorCode.AuthenticationError, "账号认证或刷新失败。", e.Code.ToString()),
         InstallationException e => new(LaunchErrorCode.InstallationError, "游戏安装或原生依赖处理失败。", e.Code.ToString()),
         AssetException e => new(LaunchErrorCode.InstallationError, "游戏资源处理失败。", e.Code.ToString()),
-        DownloadException e => new(e.Code == DownloadErrorCode.UnsafePath ? LaunchErrorCode.UnsafePath : LaunchErrorCode.InstallationError, "游戏文件下载或校验失败。", e.Code.ToString()),
+        DownloadException e => new(e.Code == DownloadErrorCode.UnsafePath ? LaunchErrorCode.UnsafePath : LaunchErrorCode.InstallationError, e.Message, e.Code.ToString()),
         Win32Exception => new(LaunchErrorCode.ProcessStartFailed, "无法创建游戏进程。"),
         IOException or UnauthorizedAccessException => new(LaunchErrorCode.IoError, "无法访问游戏文件或进程。"),
         _ => new(LaunchErrorCode.UnexpectedError, "启动操作失败。")

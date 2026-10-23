@@ -19,7 +19,7 @@ public sealed class CurseForgeInstaller
     /// <summary>Uses a managed instance snapshot and its local Minecraft/loader metadata. API and download connections remain separate.</summary>
     public CurseForgeInstaller(InstanceInfo instance, CurseForgeClient client, DownloadOptions? downloadOptions = null, HttpClient? downloadClient = null)
         : this((instance ?? throw new ArgumentNullException(nameof(instance))).RootDirectory, instance.Id, null, instance, client, downloadOptions, downloadClient) { }
-    /// <summary>Uses root/instances/instanceId with an explicit environment. Existing managed instances must use the snapshot constructor.</summary>
+    /// <summary>Uses root/versions/instanceId with an explicit environment. Existing managed instances must use the snapshot constructor.</summary>
     public CurseForgeInstaller(string rootDirectory, string instanceId, ModEnvironment environment, CurseForgeClient client,
         DownloadOptions? downloadOptions = null, HttpClient? downloadClient = null)
         : this(rootDirectory, instanceId, ModrinthMetadata.Environment(environment), null, client, downloadOptions, downloadClient) { }
@@ -40,7 +40,7 @@ public sealed class CurseForgeInstaller
     internal CurseForgeInstaller WithPackScope(PackResourceScope scope) { context.PackScope = scope; files.PackScope = scope; return this; }
     /// <summary>Reads only CurseForge ownership receipts, recovering interrupted updates under the shared instance lock.</summary>
     public Task<IReadOnlyList<InstalledMod>> GetInstalledAsync(CancellationToken cancellationToken = default) => context.ExecuteAsync(async (environment, ct) =>
-        ResourceInstance.Freeze((await files.ReadAsync(environment, ct).ConfigureAwait(false)).Mods), cancellationToken);
+        ResourceInstance.Freeze((await files.ReadAsync(environment, ct).ConfigureAwait(false)).Mods), cancellationToken, readOnly: true);
     /// <summary>Installs a compatible release (or an explicit file ID) and required dependencies. Forbidden automatic downloads fail explicitly.</summary>
     public Task<ModInstallResult> InstallAsync(int modId, int? fileId = null, IProgress<ResourceProgress>? progress = null,
         CancellationToken cancellationToken = default) => context.ExecuteAsync((environment, ct) => InstallCoreAsync(modId, fileId, environment, progress, ct), cancellationToken);
@@ -57,7 +57,7 @@ public sealed class CurseForgeInstaller
             if (latest.Id != Number(mod.VersionId) && latest.PublishedAt > mod.PublishedAt) result.Add(new(ResourceInstance.Freeze([mod])[0], latest));
         }
         return (IReadOnlyList<CurseForgeUpdate>)result.AsReadOnly();
-    }, cancellationToken);
+    }, cancellationToken, readOnly: true);
     /// <summary>Updates one managed project and necessary dependencies; failed downloads or commits retain/restore the previous complete files.</summary>
     public Task<ModInstallResult> UpdateAsync(int modId, IProgress<ResourceProgress>? progress = null, CancellationToken cancellationToken = default) =>
         context.ExecuteAsync(async (environment, ct) =>

@@ -1,6 +1,6 @@
 # 实例管理
 
-本手册对应 1.0.0。每项操作的 using、参数与调用均在独立源码中；编译/运行方式见[示例目录](examples.md)。
+本手册对应当前源码。目录布局调整尚未发布，已发布包请以对应 Tag 的文档为准。每项操作的 using、参数与调用均在独立源码中；编译/运行方式见[示例目录](examples.md)。
 
 ## 最简调用
 
@@ -14,7 +14,7 @@ Console.WriteLine(instance.Id);
 
 命名空间：`FMCore.Instances`。1.0.0 包含本模块。使用 FocusMinecraftCore 1.0.0 包或引用 `FMCore/FMCore.csproj`。
 
-`InstanceManager` 只管理自己创建的实例，不联网、不安装版本、不保存账号。每个实例的游戏目录固定为 `<root>/instances/<id>`，版本、Libraries、Assets 和下载缓存仍位于共享根目录。相同版本可以创建多个实例，显示名称和版本更新均不改变实例目录。
+`InstanceManager` 只管理自己创建的实例，不联网、不安装版本、不保存账号。每个实例的游戏目录固定为 `<root>/versions/<id>`，版本、Libraries、Assets 和下载缓存仍位于共享根目录。默认实例目录名取启动版本 ID；传入不同自定义目录名可为同一版本创建多个实例。显示名称和后续 VersionId 更新均不改变目录名。删除游戏数据会保留同目录版本 JSON、客户端 JAR 和 natives。
 
 ## 最简调用：创建、列表、读取、修改与删除
 
@@ -29,7 +29,7 @@ Console.WriteLine(instance.Id);
 | API | 参数和返回值 | 语义 |
 | --- | --- | --- |
 | `new InstanceManager(rootDirectory = ".minecraft")` | 共享根目录 | 转为绝对路径，拒绝链接；构造时不创建目录，无需释放管理器 |
-| `CreateAsync(name, versionId, cancellationToken)` | 显示名称、版本 ID → `InstanceInfo` | 使用默认设置和随机 ID，创建空实例 |
+| `CreateAsync(name, versionId, cancellationToken)` | 显示名称、版本 ID → `InstanceInfo` | 使用默认设置，目录名默认取 versionId；同名实例拒绝覆盖 |
 | `CreateAsync(config, instanceId = null, cancellationToken)` | `InstanceConfig`、可选目录 ID → `InstanceInfo` | 高级配置；使用 `new InstanceConfig { ... }` 明确类型，避免与字符串重载的类型推断歧义 |
 | `GetInstancesAsync(cancellationToken)` | → `IReadOnlyList<InstanceInfo>` | 按 ID 排序，仅枚举具有合法实例配置的直接子目录，不创建缺失目录 |
 | `GetAsync(instanceId, cancellationToken)` | → `InstanceInfo` | 读取配置及占用状态快照；不会联网或修改文件 |
@@ -37,7 +37,7 @@ Console.WriteLine(instance.Id);
 | `DeleteAsync(instanceId, progress = null, cancellationToken)` | ID、可选删除进度 | 仅删除该托管实例；禁止删除运行中、配置损坏或未托管目录 |
 | `instance.CreateLaunchConfig(account = null)` | 可选 T05 `LaunchIdentity` → `LaunchConfig` | 自动绑定共享根、版本、独立目录及启动设置；也可在结果中设置 `Accounts` |
 
-自定义 ID 为 1–80 位小写 ASCII 字母、数字、点、下划线或连字符，以字母/数字开头；拒绝设备名、尾随点、路径分隔符和路径穿越。未指定时使用随机 GUID。名称支持中文，限制为 1–128 字符且不能空白或含控制字符；名称不会用作文件路径。不会接管同名的现有目录，即使它为空。
+目录 ID 沿用安全版本标识符规则，长度 1–180，允许大小写、内部空格和中文；拒绝设备名、尾随点/空格、路径分隔符、路径穿越和 `.fmcore` 保留名称。未指定时使用启动版本 ID；同一启动版本的多个实例须传入不同的自定义目录名。名称支持中文，限制为 1–128 字符且不能空白或含控制字符；名称不会用作文件路径。不会覆盖同名托管实例或接管含未知游戏数据的目录；仅含合法同名版本 JSON、可选客户端 JAR/natives 的已安装版本目录可安全附加实例配置。
 
 `InstanceInfo` 提供 `Id`、`RootDirectory`、`GameDirectory`、`Config`、`Revision`、`CreatedAt`、`UpdatedAt` 和 `IsInUse`。它是不可变快照；更新成功后应改用新返回值。`IsInUse` 表示读取时是否存在 SDK 启动、准备或互斥操作，不承诺随后仍空闲。
 
@@ -53,9 +53,9 @@ Console.WriteLine(instance.Id);
 | `Window` | 854 × 480，非全屏 | 复用 `GameWindowConfig`；统一替换窗口默认参数 |
 | `Server`（T13） | `null` | 可选 `GameServerConfig`，保存 Host / Port，端口默认 25565 |
 
-配置位于 `instances/<id>/.fmcore/instance.json`，有明确格式版本、实例 ID 和修订号，通过同目录临时文件原子替换。JSON 不保存根目录、游戏目录、账号或令牌；实际路径始终由管理器推导，防止篡改配置后重定向删除。每份配置限制 1 MiB，拒绝未知字段、不支持的格式版本和无效配置。创建通过临时目录写好配置后再移动到最终目录；未完成的暂存目录不会进入实例列表。
+配置位于 `versions/<id>/.fmcore/instance.json`，有明确格式版本、实例 ID 和修订号，通过同目录临时文件原子替换。JSON 不保存根目录、游戏目录、账号或令牌；实际路径始终由管理器推导，防止篡改配置后重定向删除。每份配置限制 1 MiB，拒绝未知字段、不支持的格式版本和无效配置。创建通过临时目录写好配置；新目录整体提交，已有合法版本目录只新增配置、不覆盖运行文件；未完成的暂存目录不会进入实例列表。
 
-列表忽略未托管目录。若已有托管配置损坏，查询明确抛出 `StorageCorrupted`，不将损坏实例静默当作不存在；删除同样拒绝损坏配置，需先恢复原配置。旧版直接启动产生的 `instances/<版本>` 目录不会自动导入或覆盖。
+列表忽略未托管目录。若已有托管配置损坏，查询明确抛出 `StorageCorrupted`，不将损坏实例静默当作不存在；删除同样拒绝损坏配置，需先恢复原配置。旧版 `instances/<版本或实例名>` 不再作为活动目录；检测到旧目录时明确提示迁移，SDK 不自动搬动或覆盖数据。迁移步骤见[目录管理](directory-layout.md)。
 
 ## 高级配置与启动
 
@@ -99,3 +99,5 @@ T12 整合包正在等待确认时，InstanceManager.UpdateAsync 返回 Conflict
 - [更新实例快照](examples/instances-update.cs)
 - [删除指定实例](examples/instances-delete.cs)
 - [高级实例配置（高级）](examples/instances-advanced.cs)
+
+目录名称、启动版本 ID、共享资源和旧目录迁移规则见[目录管理](directory-layout.md)。

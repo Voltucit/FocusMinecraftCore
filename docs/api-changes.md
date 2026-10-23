@@ -1,4 +1,13 @@
-# T10 API 调整与迁移
+# API 调整与迁移
+
+## 当前未发布源码：版本目录隔离
+
+公开类型、方法签名和枚举值保持不变。存储行为调整为根目录的 `versions/<InstanceId 或 VersionId>`，InstanceManager 的默认目录 ID 由随机值改为 VersionId；重复创建同版本默认实例返回 AlreadyExists，需要多实例时传入不同 instanceId。VersionId 与目录名分别管理。允许在仅含合法同名运行文件的版本目录附加实例配置，删除实例数据保留运行文件。
+
+旧 `instances` 数据需要停服备份并显式迁移；SDK 不自动搬动。目录名规则放宽至安全版本 ID 格式，允许大小写、内部空格和中文；其余路径/链接/重名保护不变。只读本地查询不因目录缺失而创建目录。详细说明见[目录管理](directory-layout.md)。
+
+## T10 便捷入口
+
 
 此次只增加便捷入口，没有删除、改名或改变既有公开签名；不新增业务项目、依赖或通用封装层。
 
@@ -36,3 +45,11 @@ Create 工厂要求调用方明确账号、Java 与最大内存；可选最小�
 ## 1.0.0 版本元数据
 
 程序集简单名称和命名空间仍为 FMCore；AssemblyVersion / FileVersion 为 1.0.0.0，包与产品版本为 1.0.0。公开方法、类型、枚举值不变。Modrinth 两个构造函数的默认 User-Agent 联系 URL 更新为规范仓库地址，显式传入值仍照常使用；旧调用方编译入的旧默认值通过 GitHub 重定向保持可访问。LaunchConfig.LauncherVersion 默认值同步为 1.0.0，可由宿主显式覆盖。
+
+## 1.0.2 维护候选
+
+保留已有公开构造、方法、解构和枚举值；仅追加 ResourceImage、项目的 IconUrl/Gallery、版本身份/路径/信任提示属性，以及 VersionErrorCode.ConflictingProfiles（末尾追加）。程序集名称/命名空间继续为 FMCore，AssemblyVersion 保持 1.0.0.0；包/产品版本为 1.0.2，FileVersion=1.0.2.0。默认 LauncherVersion 字符串更新为 1.0.2，宿主可显式覆盖。
+
+行为变化：允许文件夹与 JSON ID 不同，外部同名自定义 JSON 不再被当成官方缓存覆盖；已有本地无下载地址文件可复用，但不伪称通过发布者哈希。受控 gameDir/身份参数按宿主选择生成，JVM 路径保留根目录边界。外部结构不迁移，旧 instances 路径可显式作为 GameDirectory。需要改用实际目录 Id 查询/启动；新属性只存在于本地 1.0.2 候选，1.0.1 无这些属性。
+
+使用方式见[第三方兼容](compatibility.md)和[资源图片](resource-images.md)。后续 API 或行为调整仍须同步相关中文手册、公开清单与可编译示例。

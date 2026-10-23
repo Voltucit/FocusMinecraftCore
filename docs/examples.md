@@ -201,3 +201,19 @@ dotnet run --project docs/examples/FMCore.Examples.csproj -p:Example=download-fi
 | 服务器地址 | [settings-server.cs](examples/settings-server.cs) | 替换实际服务器；游戏负责连接及认证。 完整启动见 launch-minimal。 |
 | 渐进配置启动（高级） | [settings-advanced.cs](examples/settings-advanced.cs) | 高级选项沿用原有配置与校验。 |
 | 自定义游戏参数 | [settings-game-arguments.cs](examples/settings-game-arguments.cs) | 每项一个 token；不允许覆盖身份、版本或路径。这里只配置，不运行。 |
+
+实例目录默认值与同版本多实例的独立示例：[instance-version-directories.cs](examples/instance-version-directories.cs)。
+
+## 1.0.2 维护候选：第三方目录与资源图片
+
+这些新增示例需要当前源码或本地 1.0.2 包；正式 1.0.1 尚无新增图片/目录信息属性。
+
+| 功能 | 完整代码 | 条件与范围 |
+| --- | --- | --- |
+| 只读导入已有 Minecraft 根目录 | [external-directory-scan.cs](examples/external-directory-scan.cs) | 指定已有根目录，仅扫描信息，不复制/搬动或执行版本。 |
+| 查询第三方及自定义版本 | [external-version-query.cs](examples/external-version-query.cs) | 使用 versions 下的实际文件夹名；区分目录名、JSON ID、基础版本和客户端路径。 |
+| 启动已信任的第三方版本 | [external-version-launch.cs](examples/external-version-launch.cs) | 显式 Java/内存/工作目录；AutoInstall=false，缺失文件明确报错，Ctrl+C 通过 SDK 停止。 |
+| 搜索结果图标 | [modrinth-search-icon.cs](examples/modrinth-search-icon.cs) | 复用一次搜索响应中的 icon_url，不为每个项目附加详情请求。 |
+| 详情图标与图库 | [modrinth-project-images.cs](examples/modrinth-project-images.cs) | 返回官方 gallery 和可选图标，UI 展示和缓存由宿主负责。 |
+| 搜索结果图标 | [curseforge-search-icon.cs](examples/curseforge-search-icon.cs) | 需要合法 Key，优先 logo.thumbnailUrl；不向图片 URL 附加 Key。 |
+| 详情图标与截图 | [curseforge-project-images.cs](examples/curseforge-project-images.cs) | 官方 screenshots 映射到统一 Gallery 模型，可为空。 |

@@ -1,6 +1,6 @@
 # T04：原版游戏安装
 
-本手册对应 1.0.0。每项操作的 using、参数与调用均在独立源码中；编译/运行方式见[示例目录](examples.md)。
+本手册对应当前源码。目录布局调整尚未发布，已发布包请以对应 Tag 的文档为准。每项操作的 using、参数与调用均在独立源码中；编译/运行方式见[示例目录](examples.md)。
 
 ## 最简调用
 
@@ -32,7 +32,7 @@ T08 当前源码补充解压后原生文件检查，`VerifyAsync` / `RepairAsync
 
 独立、可编译的调用代码见[本模块示例](examples.md#installer)。
 
-安装器与版本管理器必须共用根目录。已选定 Java 时，`Context` 应使用 `selectedJava.GetRuleContext(features)`，使操作系统、架构和功能条件与未来启动保持一致；下载游戏文件本身不要求运行 Java。`GameDirectory` 是相对根目录的游戏目录，空字符串使用根目录，后续隔离实例可传入 `instances/name`。缓存策略沿用 T02，只影响版本元数据。
+安装器与版本管理器必须共用根目录。已选定 Java 时，`Context` 应使用 `selectedJava.GetRuleContext(features)`，使操作系统、架构和功能条件与未来启动保持一致；下载游戏文件本身不要求运行 Java。`GameDirectory` 是相对根目录的游戏目录，空字符串使用根目录，后续隔离实例可传入 `versions/name`。缓存策略沿用 T02，只影响版本元数据。
 
 `InstallationResult` 返回计划、客户端路径、绝对 Classpath 文件列表、原生目录、资源布局和日志路径，以及下载/跳过的文件数、成功落盘的下载字节。字节统计不包含失败重试的网络流量或元数据请求。结果表示所列安装步骤已完成，不能代替实际游戏启动验证。
 
@@ -111,3 +111,5 @@ T09-C–E 进一步通过同一清单校验处理器生成库和附加支持文�
 - [原版安装](examples/game-install.cs)
 - [安装计划](examples/game-plan.cs)
 - [安装进度与取消（高级）](examples/game-install-advanced.cs)
+
+目录名称、启动版本 ID、共享资源和旧目录迁移规则见[目录管理](directory-layout.md)。

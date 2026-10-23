@@ -1,6 +1,6 @@
 # CurseForge 资源与 Mod 管理（T11 第二部分）
 
-本手册对应 1.0.0。每项操作的 using、参数与调用均在独立源码中；编译/运行方式见[示例目录](examples.md)。
+本手册对应当前源码。目录布局调整尚未发布，已发布包请以对应 Tag 的文档为准。每项操作的 using、参数与调用均在独立源码中；编译/运行方式见[示例目录](examples.md)。
 
 ## 最简调用
 
@@ -20,7 +20,7 @@ Console.WriteLine(result);
 
 独立、可编译的调用代码见[本模块示例](examples.md#curseforge)。
 
-示例项目为 [Fabric API](https://www.curseforge.com/minecraft/mc-mods/fabric-api)，不代表本轮已完成其真实 API 下载或游戏启动验证。安装目录固定为 `.minecraft/instances/fabric-1204/mods`，目标环境由调用方声明，此入口不会安装游戏或加载器。已有托管实例使用下一节的快照构造入口。
+示例项目为 [Fabric API](https://www.curseforge.com/minecraft/mc-mods/fabric-api)，不代表本轮已完成其真实 API 下载或游戏启动验证。安装目录固定为 `.minecraft/versions/fabric-1204/mods`，目标环境由调用方声明，此入口不会安装游戏或加载器。已有托管实例使用下一节的快照构造入口。
 
 API Key 必须由调用方合法申请并保存在宿主的安全配置中，示例环境变量仅展示注入方式；不要放进源码、Git、日志、命令行或实例配置，也不要把自己的 Key 发到对话中。SDK 只在内存中使用 Key，按请求添加到官方 API 的 `x-api-key` 请求头，不存入来源清单、异常或诊断字符串。申请方式和使用条件以 [CurseForge 官方说明](https://support.curseforge.com/support/solutions/articles/9000208346-about-the-curseforge-api-and-how-to-apply-for-a-key)为准。
 
@@ -105,3 +105,11 @@ API Key 必须由调用方合法申请并保存在宿主的安全配置中，示
 - [单 Mod 更新进度与取消（高级）](examples/curseforge-advanced.cs)
 - [指定文件资料](examples/curseforge-file.cs)
 - [安装明确选中的文件（高级）](examples/curseforge-install-exact.cs)
+
+目录名称、启动版本 ID、共享资源和旧目录迁移规则见[目录管理](directory-layout.md)。
+
+## 1.0.2 维护候选：项目图片
+
+CurseForgeProject 增加可选 Uri IconUrl 与只读 Gallery，保留原构造/解构签名。IconUrl 优先取 logo.thumbnailUrl，回退 logo.url；screenshots 映射 ResourceImage，保留图片 ID、标题、说明、Url 和 ThumbnailUrl。搜索数据已包含图片时直接复用，无额外图片或详情请求。
+
+示例：[搜索图标](examples/curseforge-search-icon.cs)、[详情截图](examples/curseforge-project-images.cs)。合法 Key 只发送到 API 请求头，不附加到图片 URL，不向图床转发认证头；不安全的图片地址忽略为 null/空列表。未提供真实 Key，本轮图片字段通过 Mock 验证，不表述为真实 CurseForge 接口验收。详见[资源图片](resource-images.md)。

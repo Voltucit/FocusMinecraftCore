@@ -24,7 +24,13 @@ public sealed record CurseForgeSearchOptions
 }
 /// <summary>Project metadata including platform distribution policy. Null AllowModDistribution means unspecified, not an explicit permission override.</summary>
 public sealed record CurseForgeProject(int Id, int GameId, string Name, string Slug, string Summary, int? ClassId,
-    bool? AllowModDistribution, bool IsAvailable);
+    bool? AllowModDistribution, bool IsAvailable)
+{
+    /// <summary>优先取 logo.thumbnailUrl，回退到 logo.url；缺失或地址不安全时为 null。</summary>
+    public Uri? IconUrl { get; init; }
+    /// <summary>官方 screenshots，与 Modrinth 使用相同图片模型；无图片时为空。</summary>
+    public IReadOnlyList<ResourceImage> Gallery { get; init; } = [];
+}
 /// <summary>One project-search page.</summary>
 public sealed record CurseForgeSearchResult(IReadOnlyList<CurseForgeProject> Mods, int Index, int PageSize, int TotalCount);
 /// <summary>Original CurseForge dependency relation values.</summary>

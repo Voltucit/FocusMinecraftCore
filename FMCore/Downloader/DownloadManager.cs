@@ -72,7 +72,7 @@ public sealed partial class DownloadManager
 
     private (DownloadRequest Request, string Path) Prepare(DownloadRequest request)
     {
-        if (request == null || request.Source == null || (request.LocalOnly ? request.ExpectedHash == null : !ValidSource(request.Source)) || request.ExpectedSize is < 0)
+        if (request == null || request.Source == null || (request.LocalOnly ? request.ExpectedHash == null && !request.AllowUnverifiedLocal : !ValidSource(request.Source)) || request.ExpectedSize is < 0)
             throw Invalid("下载地址或预期大小无效；远程地址必须使用 HTTPS，HTTP 仅限本机回环地址。");
         var length = request.HashAlgorithm switch
         {
@@ -83,6 +83,8 @@ public sealed partial class DownloadManager
         };
         if (request.ExpectedHash is string hash && (hash.Length != length || !hash.All(char.IsAsciiHexDigit)))
             throw Invalid("预期哈希的长度或字符无效。");
+        if (request.AlternateHashes.Count > 128 || request.AlternateHashes.Any(h => h.Length != length || !h.All(char.IsAsciiHexDigit)))
+            throw Invalid("备选校验哈希无效。");
         try { return (request, DownloadPath.Resolve(root, request.RelativePath)); }
         catch (Exception ex) when (ex is ArgumentException or NotSupportedException or PathTooLongException)
         { throw Invalid("目标路径格式无效。"); }
@@ -108,7 +110,9 @@ public sealed partial class DownloadManager
                 progress?.Report(new(request.RelativePath, size, size, 0, DownloadState.Skipped));
                 return new(path, size, 0, true);
             }
-            if (request.LocalOnly) throw Failure(DownloadErrorCode.LocalFileUnavailable, "处理器生成文件缺失或损坏，请重新运行对应加载器安装器。", request);
+            if (request.LocalOnly) throw Failure(DownloadErrorCode.LocalFileUnavailable, "本地客户端、依赖或生成文件缺失/损坏；请补齐原安装或重新运行对应加载器安装器。", request);
+            if (request.PreserveExisting && File.Exists(path))
+                throw Failure(DownloadErrorCode.LocalFileUnavailable, "已有自定义版本文件与声明不符，未自动覆盖；请检查原安装或明确执行修复。", request);
             for (var attempt = 1; ; attempt++)
             {
                 ct.ThrowIfCancellationRequested();
@@ -134,6 +138,8 @@ public sealed partial class DownloadManager
 
     private static async Task<bool> IsExistingValidAsync(DownloadRequest request, string path, CancellationToken ct)
     {
+        if (request.LocalOnly && request.AllowUnverifiedLocal && request.ExpectedHash == null && request.ExpectedSize == null)
+            return File.Exists(path) && new FileInfo(path).Length > 0;
         // File existence alone cannot prove that an earlier download is complete.
         if ((request.ExpectedHash == null && request.ExpectedSize == null) || !File.Exists(path)) return false;
         if (request.ExpectedSize is long size && new FileInfo(path).Length != size) return false;
@@ -145,7 +151,7 @@ public sealed partial class DownloadManager
         {
             int count;
             while ((count = await stream.ReadAsync(buffer.AsMemory(), ct)) > 0) hash.AppendData(buffer, 0, count);
-            return Matches(hash, request.ExpectedHash);
+            return Matches(hash, request.ExpectedHash, request.AlternateHashes);
         }
         finally { ArrayPool<byte>.Shared.Return(buffer); }
     }
@@ -234,7 +240,7 @@ public sealed partial class DownloadManager
             }
             if (total is long length && bytes != length)
                 throw Failure(DownloadErrorCode.SizeMismatch, "响应内容不完整。", request, attempt, retryable: true);
-            if (hash != null && !Matches(hash, request.ExpectedHash!))
+            if (hash != null && !Matches(hash, request.ExpectedHash!, request.AlternateHashes))
                 throw Failure(DownloadErrorCode.HashMismatch, "下载内容的哈希校验失败。", request, attempt, retryable: true);
             await output.FlushAsync(ct);
             return bytes;
@@ -253,8 +259,11 @@ public sealed partial class DownloadManager
         _ => throw Invalid("不支持的哈希算法。")
     };
 
-    private static bool Matches(IncrementalHash hash, string expected) =>
-        string.Equals(Convert.ToHexString(hash.GetHashAndReset()), expected, StringComparison.OrdinalIgnoreCase);
+    private static bool Matches(IncrementalHash hash, string expected, IReadOnlyList<string> alternatives)
+    {
+        var actual = Convert.ToHexString(hash.GetHashAndReset());
+        return actual.Equals(expected, StringComparison.OrdinalIgnoreCase) || alternatives.Contains(actual, StringComparer.OrdinalIgnoreCase);
+    }
 
     private static DownloadException Invalid(string message) => new(DownloadErrorCode.InvalidRequest, message);
     private static DownloadException Failure(DownloadErrorCode code, string message, DownloadRequest request,

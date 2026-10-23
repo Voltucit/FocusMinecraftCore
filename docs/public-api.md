@@ -1,8 +1,8 @@
-# 1.0.0 公开 API 完整清单
+# 公开 API 完整清单
 
-由 Release 程序集反射生成。包含公开类型、声明的公开/受保护成员、属性访问器（含 init）、事件、参数默认值和枚举常量；包含 record 编译器生成成员，不重复 .NET 基类继承成员。可空注解以源码与 IDE 为准。
+当前 **1.0.2 维护候选**，尚未公开发布。由 Release 程序集反射生成，包含公开类型、公开/受保护成员、访问器（含 init）、事件、参数默认值和枚举常量；保留 record 生成成员，可空注解以源码与 IDE 为准。
 
-195 个导出类型、3280 条记录。相对 T10 没有类型/方法/属性/枚举值移除；两处构造函数默认 User-Agent 的联系链接更新为规范仓库地址，详见[兼容说明](api-changes.md)。
+**196 个导出类型、3366 条记录**。基线的 3280 条记录全部保留，仅新增 86 条；未移除构造、方法、解构、属性或原枚举值。新增与行为迁移见 [API 调整](api-changes.md)、[第三方兼容](compatibility.md)、[资源图片](resource-images.md)。
 
 ## Assets
 
@@ -2435,7 +2435,9 @@ M FMCore.Resources.CurseForgeProject.GetHashCode() -> System.Int32 | instance pu
 M FMCore.Resources.CurseForgeProject.ToString() -> System.String | instance public
 M FMCore.Resources.CurseForgeProject.get_AllowModDistribution() -> System.Nullable`1[System.Boolean] | instance public
 M FMCore.Resources.CurseForgeProject.get_ClassId() -> System.Nullable`1[System.Int32] | instance public
+M FMCore.Resources.CurseForgeProject.get_Gallery() -> System.Collections.Generic.IReadOnlyList`1[FMCore.Resources.ResourceImage] | instance public
 M FMCore.Resources.CurseForgeProject.get_GameId() -> System.Int32 | instance public
+M FMCore.Resources.CurseForgeProject.get_IconUrl() -> System.Uri | instance public
 M FMCore.Resources.CurseForgeProject.get_Id() -> System.Int32 | instance public
 M FMCore.Resources.CurseForgeProject.get_IsAvailable() -> System.Boolean | instance public
 M FMCore.Resources.CurseForgeProject.get_Name() -> System.String | instance public
@@ -2445,7 +2447,9 @@ M FMCore.Resources.CurseForgeProject.op_Equality(FMCore.Resources.CurseForgeProj
 M FMCore.Resources.CurseForgeProject.op_Inequality(FMCore.Resources.CurseForgeProject left, FMCore.Resources.CurseForgeProject right) -> System.Boolean | static public
 M FMCore.Resources.CurseForgeProject.set_AllowModDistribution(System.Nullable`1[System.Boolean] value) -> System.Void | instance public
 M FMCore.Resources.CurseForgeProject.set_ClassId(System.Nullable`1[System.Int32] value) -> System.Void | instance public
+M FMCore.Resources.CurseForgeProject.set_Gallery(System.Collections.Generic.IReadOnlyList`1[FMCore.Resources.ResourceImage] value) -> System.Void | instance public
 M FMCore.Resources.CurseForgeProject.set_GameId(System.Int32 value) -> System.Void | instance public
+M FMCore.Resources.CurseForgeProject.set_IconUrl(System.Uri value) -> System.Void | instance public
 M FMCore.Resources.CurseForgeProject.set_Id(System.Int32 value) -> System.Void | instance public
 M FMCore.Resources.CurseForgeProject.set_IsAvailable(System.Boolean value) -> System.Void | instance public
 M FMCore.Resources.CurseForgeProject.set_Name(System.String value) -> System.Void | instance public
@@ -2637,6 +2641,8 @@ M FMCore.Resources.ModrinthProject.Equals(System.Object obj) -> System.Boolean |
 M FMCore.Resources.ModrinthProject.GetHashCode() -> System.Int32 | instance public
 M FMCore.Resources.ModrinthProject.ToString() -> System.String | instance public
 M FMCore.Resources.ModrinthProject.get_Description() -> System.String | instance public
+M FMCore.Resources.ModrinthProject.get_Gallery() -> System.Collections.Generic.IReadOnlyList`1[FMCore.Resources.ResourceImage] | instance public
+M FMCore.Resources.ModrinthProject.get_IconUrl() -> System.Uri | instance public
 M FMCore.Resources.ModrinthProject.get_Id() -> System.String | instance public
 M FMCore.Resources.ModrinthProject.get_ProjectType() -> System.String | instance public
 M FMCore.Resources.ModrinthProject.get_Slug() -> System.String | instance public
@@ -2644,6 +2650,8 @@ M FMCore.Resources.ModrinthProject.get_Title() -> System.String | instance publi
 M FMCore.Resources.ModrinthProject.op_Equality(FMCore.Resources.ModrinthProject left, FMCore.Resources.ModrinthProject right) -> System.Boolean | static public
 M FMCore.Resources.ModrinthProject.op_Inequality(FMCore.Resources.ModrinthProject left, FMCore.Resources.ModrinthProject right) -> System.Boolean | static public
 M FMCore.Resources.ModrinthProject.set_Description(System.String value) -> System.Void | instance public
+M FMCore.Resources.ModrinthProject.set_Gallery(System.Collections.Generic.IReadOnlyList`1[FMCore.Resources.ResourceImage] value) -> System.Void | instance public
+M FMCore.Resources.ModrinthProject.set_IconUrl(System.Uri value) -> System.Void | instance public
 M FMCore.Resources.ModrinthProject.set_Id(System.String value) -> System.Void | instance public
 M FMCore.Resources.ModrinthProject.set_ProjectType(System.String value) -> System.Void | instance public
 M FMCore.Resources.ModrinthProject.set_Slug(System.String value) -> System.Void | instance public
@@ -2722,6 +2730,31 @@ M FMCore.Resources.ResourceException.get_StatusCode() -> System.Nullable`1[Syste
 M FMCore.Resources.ResourceException.set_DownloadError(System.Nullable`1[FMCore.Downloader.DownloadErrorCode] value) -> System.Void | instance public
 M FMCore.Resources.ResourceException.set_RetryAfter(System.Nullable`1[System.TimeSpan] value) -> System.Void | instance public
 M FMCore.Resources.ResourceException.set_StatusCode(System.Nullable`1[System.Int32] value) -> System.Void | instance public
+M FMCore.Resources.ResourceImage..ctor(System.Uri Url) -> constructor | instance public
+M FMCore.Resources.ResourceImage.<Clone>$() -> FMCore.Resources.ResourceImage | instance public
+M FMCore.Resources.ResourceImage.Deconstruct(System.Uri& Url) -> System.Void | instance public
+M FMCore.Resources.ResourceImage.Equals(FMCore.Resources.ResourceImage other) -> System.Boolean | instance public
+M FMCore.Resources.ResourceImage.Equals(System.Object obj) -> System.Boolean | instance public
+M FMCore.Resources.ResourceImage.GetHashCode() -> System.Int32 | instance public
+M FMCore.Resources.ResourceImage.ToString() -> System.String | instance public
+M FMCore.Resources.ResourceImage.get_CreatedAt() -> System.Nullable`1[System.DateTimeOffset] | instance public
+M FMCore.Resources.ResourceImage.get_Description() -> System.String | instance public
+M FMCore.Resources.ResourceImage.get_Featured() -> System.Boolean | instance public
+M FMCore.Resources.ResourceImage.get_Id() -> System.Nullable`1[System.Int32] | instance public
+M FMCore.Resources.ResourceImage.get_Ordering() -> System.Nullable`1[System.Int32] | instance public
+M FMCore.Resources.ResourceImage.get_ThumbnailUrl() -> System.Uri | instance public
+M FMCore.Resources.ResourceImage.get_Title() -> System.String | instance public
+M FMCore.Resources.ResourceImage.get_Url() -> System.Uri | instance public
+M FMCore.Resources.ResourceImage.op_Equality(FMCore.Resources.ResourceImage left, FMCore.Resources.ResourceImage right) -> System.Boolean | static public
+M FMCore.Resources.ResourceImage.op_Inequality(FMCore.Resources.ResourceImage left, FMCore.Resources.ResourceImage right) -> System.Boolean | static public
+M FMCore.Resources.ResourceImage.set_CreatedAt(System.Nullable`1[System.DateTimeOffset] value) -> System.Void | instance public
+M FMCore.Resources.ResourceImage.set_Description(System.String value) -> System.Void | instance public
+M FMCore.Resources.ResourceImage.set_Featured(System.Boolean value) -> System.Void | instance public
+M FMCore.Resources.ResourceImage.set_Id(System.Nullable`1[System.Int32] value) -> System.Void | instance public
+M FMCore.Resources.ResourceImage.set_Ordering(System.Nullable`1[System.Int32] value) -> System.Void | instance public
+M FMCore.Resources.ResourceImage.set_ThumbnailUrl(System.Uri value) -> System.Void | instance public
+M FMCore.Resources.ResourceImage.set_Title(System.String value) -> System.Void | instance public
+M FMCore.Resources.ResourceImage.set_Url(System.Uri value) -> System.Void | instance public
 M FMCore.Resources.ResourceProgress..ctor(FMCore.Resources.ResourceStage Stage, FMCore.Downloader.DownloadProgress Download = null) -> constructor | instance public
 M FMCore.Resources.ResourceProgress.<Clone>$() -> FMCore.Resources.ResourceProgress | instance public
 M FMCore.Resources.ResourceProgress.Deconstruct(FMCore.Resources.ResourceStage& Stage, FMCore.Downloader.DownloadProgress& Download) -> System.Void | instance public
@@ -2762,7 +2795,9 @@ P FMCore.Resources.CurseForgeFilePage.TotalCount : System.Int32 | get_TotalCount
 P FMCore.Resources.CurseForgeInstaller.GameDirectory : System.String | get_GameDirectory
 P FMCore.Resources.CurseForgeProject.AllowModDistribution : System.Nullable`1[System.Boolean] | get_AllowModDistribution,set_AllowModDistribution[init]
 P FMCore.Resources.CurseForgeProject.ClassId : System.Nullable`1[System.Int32] | get_ClassId,set_ClassId[init]
+P FMCore.Resources.CurseForgeProject.Gallery : System.Collections.Generic.IReadOnlyList`1[FMCore.Resources.ResourceImage] | get_Gallery,set_Gallery[init]
 P FMCore.Resources.CurseForgeProject.GameId : System.Int32 | get_GameId,set_GameId[init]
+P FMCore.Resources.CurseForgeProject.IconUrl : System.Uri | get_IconUrl,set_IconUrl[init]
 P FMCore.Resources.CurseForgeProject.Id : System.Int32 | get_Id,set_Id[init]
 P FMCore.Resources.CurseForgeProject.IsAvailable : System.Boolean | get_IsAvailable,set_IsAvailable[init]
 P FMCore.Resources.CurseForgeProject.Name : System.String | get_Name,set_Name[init]
@@ -2812,6 +2847,8 @@ P FMCore.Resources.ModrinthFile.Size : System.Int64 | get_Size,set_Size[init]
 P FMCore.Resources.ModrinthFile.Url : System.Uri | get_Url,set_Url[init]
 P FMCore.Resources.ModrinthInstaller.GameDirectory : System.String | get_GameDirectory
 P FMCore.Resources.ModrinthProject.Description : System.String | get_Description,set_Description[init]
+P FMCore.Resources.ModrinthProject.Gallery : System.Collections.Generic.IReadOnlyList`1[FMCore.Resources.ResourceImage] | get_Gallery,set_Gallery[init]
+P FMCore.Resources.ModrinthProject.IconUrl : System.Uri | get_IconUrl,set_IconUrl[init]
 P FMCore.Resources.ModrinthProject.Id : System.String | get_Id,set_Id[init]
 P FMCore.Resources.ModrinthProject.ProjectType : System.String | get_ProjectType,set_ProjectType[init]
 P FMCore.Resources.ModrinthProject.Slug : System.String | get_Slug,set_Slug[init]
@@ -2840,6 +2877,14 @@ P FMCore.Resources.ResourceException.Code : FMCore.Resources.ResourceErrorCode |
 P FMCore.Resources.ResourceException.DownloadError : System.Nullable`1[FMCore.Downloader.DownloadErrorCode] | get_DownloadError,set_DownloadError[init]
 P FMCore.Resources.ResourceException.RetryAfter : System.Nullable`1[System.TimeSpan] | get_RetryAfter,set_RetryAfter[init]
 P FMCore.Resources.ResourceException.StatusCode : System.Nullable`1[System.Int32] | get_StatusCode,set_StatusCode[init]
+P FMCore.Resources.ResourceImage.CreatedAt : System.Nullable`1[System.DateTimeOffset] | get_CreatedAt,set_CreatedAt[init]
+P FMCore.Resources.ResourceImage.Description : System.String | get_Description,set_Description[init]
+P FMCore.Resources.ResourceImage.Featured : System.Boolean | get_Featured,set_Featured[init]
+P FMCore.Resources.ResourceImage.Id : System.Nullable`1[System.Int32] | get_Id,set_Id[init]
+P FMCore.Resources.ResourceImage.Ordering : System.Nullable`1[System.Int32] | get_Ordering,set_Ordering[init]
+P FMCore.Resources.ResourceImage.ThumbnailUrl : System.Uri | get_ThumbnailUrl,set_ThumbnailUrl[init]
+P FMCore.Resources.ResourceImage.Title : System.String | get_Title,set_Title[init]
+P FMCore.Resources.ResourceImage.Url : System.Uri | get_Url,set_Url[init]
 P FMCore.Resources.ResourceProgress.Download : FMCore.Downloader.DownloadProgress | get_Download,set_Download[init]
 P FMCore.Resources.ResourceProgress.Stage : FMCore.Resources.ResourceStage | get_Stage,set_Stage[init]
 T FMCore.Resources.CurseForgeClient : System.Object | System.IDisposable
@@ -2867,8 +2912,15 @@ T FMCore.Resources.ModrinthSearchResult : System.Object | System.IEquatable`1[FM
 T FMCore.Resources.ModrinthVersion : System.Object | System.IEquatable`1[FMCore.Resources.ModrinthVersion]
 T FMCore.Resources.ResourceErrorCode : System.Enum | System.IComparable, System.IConvertible, System.IFormattable, System.ISpanFormattable
 T FMCore.Resources.ResourceException : System.Exception | System.Runtime.Serialization.ISerializable
+T FMCore.Resources.ResourceImage : System.Object | System.IEquatable`1[FMCore.Resources.ResourceImage]
 T FMCore.Resources.ResourceProgress : System.Object | System.IEquatable`1[FMCore.Resources.ResourceProgress]
 T FMCore.Resources.ResourceStage : System.Enum | System.IComparable, System.IConvertible, System.IFormattable, System.ISpanFormattable
+```
+
+## Root
+
+```text
+T FMCore.FmCore : System.Object |
 ```
 
 ## Versions
@@ -2877,6 +2929,7 @@ T FMCore.Resources.ResourceStage : System.Enum | System.IComparable, System.ICon
 F FMCore.Versions.VersionCachePolicy.CacheOnly : FMCore.Versions.VersionCachePolicy = 2
 F FMCore.Versions.VersionCachePolicy.PreferCache : FMCore.Versions.VersionCachePolicy = 0
 F FMCore.Versions.VersionCachePolicy.Refresh : FMCore.Versions.VersionCachePolicy = 1
+F FMCore.Versions.VersionErrorCode.ConflictingProfiles : FMCore.Versions.VersionErrorCode = 8
 F FMCore.Versions.VersionErrorCode.InheritanceCycle : FMCore.Versions.VersionErrorCode = 4
 F FMCore.Versions.VersionErrorCode.InheritanceTooDeep : FMCore.Versions.VersionErrorCode = 5
 F FMCore.Versions.VersionErrorCode.InvalidMetadata : FMCore.Versions.VersionErrorCode = 0
@@ -2939,15 +2992,22 @@ M FMCore.Versions.GameCoreInfo.Equals(System.Object obj) -> System.Boolean | ins
 M FMCore.Versions.GameCoreInfo.GetHashCode() -> System.Int32 | instance public
 M FMCore.Versions.GameCoreInfo.ToString() -> System.String | instance public
 M FMCore.Versions.GameCoreInfo.get_ClientJarPath() -> System.String | instance public
+M FMCore.Versions.GameCoreInfo.get_DirectoryName() -> System.String | instance public
 M FMCore.Versions.GameCoreInfo.get_ErrorCode() -> System.Nullable`1[FMCore.Versions.VersionErrorCode] | instance public
 M FMCore.Versions.GameCoreInfo.get_HasClientJar() -> System.Boolean | instance public
 M FMCore.Versions.GameCoreInfo.get_Id() -> System.String | instance public
+M FMCore.Versions.GameCoreInfo.get_IsCustom() -> System.Boolean | instance public
 M FMCore.Versions.GameCoreInfo.get_JavaRequirement() -> FMCore.Versions.JavaRequirement | instance public
 M FMCore.Versions.GameCoreInfo.get_Loaders() -> System.Collections.Generic.IReadOnlyList`1[FMCore.Versions.GameLoaderInfo] | instance public
 M FMCore.Versions.GameCoreInfo.get_MainClass() -> System.String | instance public
+M FMCore.Versions.GameCoreInfo.get_MetadataId() -> System.String | instance public
+M FMCore.Versions.GameCoreInfo.get_MetadataPath() -> System.String | instance public
 M FMCore.Versions.GameCoreInfo.get_MinecraftVersion() -> System.String | instance public
 M FMCore.Versions.GameCoreInfo.get_ResolvedVersion() -> FMCore.Versions.ResolvedVersion | instance public
+M FMCore.Versions.GameCoreInfo.get_RootDirectory() -> System.String | instance public
 M FMCore.Versions.GameCoreInfo.get_Type() -> System.String | instance public
+M FMCore.Versions.GameCoreInfo.get_VersionDirectory() -> System.String | instance public
+M FMCore.Versions.GameCoreInfo.get_Warnings() -> System.Collections.Generic.IReadOnlyList`1[System.String] | instance public
 M FMCore.Versions.GameCoreInfo.op_Equality(FMCore.Versions.GameCoreInfo left, FMCore.Versions.GameCoreInfo right) -> System.Boolean | static public
 M FMCore.Versions.GameCoreInfo.op_Inequality(FMCore.Versions.GameCoreInfo left, FMCore.Versions.GameCoreInfo right) -> System.Boolean | static public
 M FMCore.Versions.GameCoreInfo.set_ClientJarPath(System.String value) -> System.Void | instance public
@@ -2959,7 +3019,9 @@ M FMCore.Versions.GameCoreInfo.set_Loaders(System.Collections.Generic.IReadOnlyL
 M FMCore.Versions.GameCoreInfo.set_MainClass(System.String value) -> System.Void | instance public
 M FMCore.Versions.GameCoreInfo.set_MinecraftVersion(System.String value) -> System.Void | instance public
 M FMCore.Versions.GameCoreInfo.set_ResolvedVersion(FMCore.Versions.ResolvedVersion value) -> System.Void | instance public
+M FMCore.Versions.GameCoreInfo.set_RootDirectory(System.String value) -> System.Void | instance public
 M FMCore.Versions.GameCoreInfo.set_Type(System.String value) -> System.Void | instance public
+M FMCore.Versions.GameCoreInfo.set_VersionDirectory(System.String value) -> System.Void | instance public
 M FMCore.Versions.GameCoreUtil.GetAvailableVersionsAsync(System.String root = ".minecraft", FMCore.Versions.VersionCachePolicy cachePolicy = PreferCache, System.Threading.CancellationToken cancellationToken = default) -> System.Threading.Tasks.Task`1[FMCore.Versions.VersionManifest] | static public
 M FMCore.Versions.GameCoreUtil.GetGameCore(System.String versionId, System.String root = ".minecraft") -> FMCore.Versions.GameCoreInfo | static public
 M FMCore.Versions.GameCoreUtil.GetGameCoreAsync(System.String versionId, System.String root = ".minecraft", System.Threading.CancellationToken cancellationToken = default) -> System.Threading.Tasks.Task`1[FMCore.Versions.GameCoreInfo] | static public
@@ -3042,8 +3104,10 @@ M FMCore.Versions.LocalVersionInfo.get_ClientJarPath() -> System.String | instan
 M FMCore.Versions.LocalVersionInfo.get_ErrorCode() -> System.Nullable`1[FMCore.Versions.VersionErrorCode] | instance public
 M FMCore.Versions.LocalVersionInfo.get_HasClientJar() -> System.Boolean | instance public
 M FMCore.Versions.LocalVersionInfo.get_Id() -> System.String | instance public
+M FMCore.Versions.LocalVersionInfo.get_MetadataId() -> System.String | instance public
 M FMCore.Versions.LocalVersionInfo.get_MetadataPath() -> System.String | instance public
 M FMCore.Versions.LocalVersionInfo.get_Type() -> System.String | instance public
+M FMCore.Versions.LocalVersionInfo.get_VersionDirectory() -> System.String | instance public
 M FMCore.Versions.LocalVersionInfo.op_Equality(FMCore.Versions.LocalVersionInfo left, FMCore.Versions.LocalVersionInfo right) -> System.Boolean | static public
 M FMCore.Versions.LocalVersionInfo.op_Inequality(FMCore.Versions.LocalVersionInfo left, FMCore.Versions.LocalVersionInfo right) -> System.Boolean | static public
 M FMCore.Versions.LocalVersionInfo.set_ClientJarId(System.String value) -> System.Void | instance public
@@ -3051,8 +3115,10 @@ M FMCore.Versions.LocalVersionInfo.set_ClientJarPath(System.String value) -> Sys
 M FMCore.Versions.LocalVersionInfo.set_ErrorCode(System.Nullable`1[FMCore.Versions.VersionErrorCode] value) -> System.Void | instance public
 M FMCore.Versions.LocalVersionInfo.set_HasClientJar(System.Boolean value) -> System.Void | instance public
 M FMCore.Versions.LocalVersionInfo.set_Id(System.String value) -> System.Void | instance public
+M FMCore.Versions.LocalVersionInfo.set_MetadataId(System.String value) -> System.Void | instance public
 M FMCore.Versions.LocalVersionInfo.set_MetadataPath(System.String value) -> System.Void | instance public
 M FMCore.Versions.LocalVersionInfo.set_Type(System.String value) -> System.Void | instance public
+M FMCore.Versions.LocalVersionInfo.set_VersionDirectory(System.String value) -> System.Void | instance public
 M FMCore.Versions.LoggingConfiguration..ctor(System.String Argument, System.String Type, System.String FileId, FMCore.Versions.DownloadArtifact File) -> constructor | instance public
 M FMCore.Versions.LoggingConfiguration.<Clone>$() -> FMCore.Versions.LoggingConfiguration | instance public
 M FMCore.Versions.LoggingConfiguration.Deconstruct(System.String& Argument, System.String& Type, System.String& FileId, FMCore.Versions.DownloadArtifact& File) -> System.Void | instance public
@@ -3100,14 +3166,25 @@ M FMCore.Versions.ResolvedVersion.GetHashCode() -> System.Int32 | instance publi
 M FMCore.Versions.ResolvedVersion.ToString() -> System.String | instance public
 M FMCore.Versions.ResolvedVersion.get_ClientDownload() -> FMCore.Versions.DownloadArtifact | instance public
 M FMCore.Versions.ResolvedVersion.get_ClientJarId() -> System.String | instance public
+M FMCore.Versions.ResolvedVersion.get_ClientJarRelativePath() -> System.String | instance public
+M FMCore.Versions.ResolvedVersion.get_DirectoryName() -> System.String | instance public
 M FMCore.Versions.ResolvedVersion.get_InheritanceChain() -> System.Collections.Generic.IReadOnlyList`1[System.String] | instance public
+M FMCore.Versions.ResolvedVersion.get_IsCustom() -> System.Boolean | instance public
 M FMCore.Versions.ResolvedVersion.get_Metadata() -> FMCore.Versions.VersionMetadata | instance public
+M FMCore.Versions.ResolvedVersion.get_MetadataPath() -> System.String | instance public
+M FMCore.Versions.ResolvedVersion.get_MinecraftVersion() -> System.String | instance public
+M FMCore.Versions.ResolvedVersion.get_Warnings() -> System.Collections.Generic.IReadOnlyList`1[System.String] | instance public
 M FMCore.Versions.ResolvedVersion.op_Equality(FMCore.Versions.ResolvedVersion left, FMCore.Versions.ResolvedVersion right) -> System.Boolean | static public
 M FMCore.Versions.ResolvedVersion.op_Inequality(FMCore.Versions.ResolvedVersion left, FMCore.Versions.ResolvedVersion right) -> System.Boolean | static public
 M FMCore.Versions.ResolvedVersion.set_ClientDownload(FMCore.Versions.DownloadArtifact value) -> System.Void | instance public
 M FMCore.Versions.ResolvedVersion.set_ClientJarId(System.String value) -> System.Void | instance public
+M FMCore.Versions.ResolvedVersion.set_ClientJarRelativePath(System.String value) -> System.Void | instance public
+M FMCore.Versions.ResolvedVersion.set_DirectoryName(System.String value) -> System.Void | instance public
 M FMCore.Versions.ResolvedVersion.set_InheritanceChain(System.Collections.Generic.IReadOnlyList`1[System.String] value) -> System.Void | instance public
+M FMCore.Versions.ResolvedVersion.set_IsCustom(System.Boolean value) -> System.Void | instance public
 M FMCore.Versions.ResolvedVersion.set_Metadata(FMCore.Versions.VersionMetadata value) -> System.Void | instance public
+M FMCore.Versions.ResolvedVersion.set_MetadataPath(System.String value) -> System.Void | instance public
+M FMCore.Versions.ResolvedVersion.set_Warnings(System.Collections.Generic.IReadOnlyList`1[System.String] value) -> System.Void | instance public
 M FMCore.Versions.RuleContext..ctor(System.String OperatingSystem, System.String Architecture, System.String OperatingSystemVersion, System.Collections.Generic.IReadOnlyDictionary`2[System.String,System.Boolean] Features = null) -> constructor | instance public
 M FMCore.Versions.RuleContext.<Clone>$() -> FMCore.Versions.RuleContext | instance public
 M FMCore.Versions.RuleContext.Deconstruct(System.String& OperatingSystem, System.String& Architecture, System.String& OperatingSystemVersion, System.Collections.Generic.IReadOnlyDictionary`2[System.String,System.Boolean]& Features) -> System.Void | instance public
@@ -3238,15 +3315,22 @@ P FMCore.Versions.DownloadArtifact.Sha1 : System.String | get_Sha1,set_Sha1[init
 P FMCore.Versions.DownloadArtifact.Size : System.Nullable`1[System.Int64] | get_Size,set_Size[init]
 P FMCore.Versions.DownloadArtifact.Url : System.Uri | get_Url,set_Url[init]
 P FMCore.Versions.GameCoreInfo.ClientJarPath : System.String | get_ClientJarPath,set_ClientJarPath[init]
+P FMCore.Versions.GameCoreInfo.DirectoryName : System.String | get_DirectoryName
 P FMCore.Versions.GameCoreInfo.ErrorCode : System.Nullable`1[FMCore.Versions.VersionErrorCode] | get_ErrorCode,set_ErrorCode[init]
 P FMCore.Versions.GameCoreInfo.HasClientJar : System.Boolean | get_HasClientJar,set_HasClientJar[init]
 P FMCore.Versions.GameCoreInfo.Id : System.String | get_Id,set_Id[init]
+P FMCore.Versions.GameCoreInfo.IsCustom : System.Boolean | get_IsCustom
 P FMCore.Versions.GameCoreInfo.JavaRequirement : FMCore.Versions.JavaRequirement | get_JavaRequirement,set_JavaRequirement[init]
 P FMCore.Versions.GameCoreInfo.Loaders : System.Collections.Generic.IReadOnlyList`1[FMCore.Versions.GameLoaderInfo] | get_Loaders,set_Loaders[init]
 P FMCore.Versions.GameCoreInfo.MainClass : System.String | get_MainClass,set_MainClass[init]
+P FMCore.Versions.GameCoreInfo.MetadataId : System.String | get_MetadataId
+P FMCore.Versions.GameCoreInfo.MetadataPath : System.String | get_MetadataPath
 P FMCore.Versions.GameCoreInfo.MinecraftVersion : System.String | get_MinecraftVersion,set_MinecraftVersion[init]
 P FMCore.Versions.GameCoreInfo.ResolvedVersion : FMCore.Versions.ResolvedVersion | get_ResolvedVersion,set_ResolvedVersion[init]
+P FMCore.Versions.GameCoreInfo.RootDirectory : System.String | get_RootDirectory,set_RootDirectory[init]
 P FMCore.Versions.GameCoreInfo.Type : System.String | get_Type,set_Type[init]
+P FMCore.Versions.GameCoreInfo.VersionDirectory : System.String | get_VersionDirectory,set_VersionDirectory[init]
+P FMCore.Versions.GameCoreInfo.Warnings : System.Collections.Generic.IReadOnlyList`1[System.String] | get_Warnings
 P FMCore.Versions.GameLoaderInfo.Name : System.String | get_Name,set_Name[init]
 P FMCore.Versions.GameLoaderInfo.Version : System.String | get_Version,set_Version[init]
 P FMCore.Versions.GeneratedFile.RelativePath : System.String | get_RelativePath,set_RelativePath[init]
@@ -3266,8 +3350,10 @@ P FMCore.Versions.LocalVersionInfo.ClientJarPath : System.String | get_ClientJar
 P FMCore.Versions.LocalVersionInfo.ErrorCode : System.Nullable`1[FMCore.Versions.VersionErrorCode] | get_ErrorCode,set_ErrorCode[init]
 P FMCore.Versions.LocalVersionInfo.HasClientJar : System.Boolean | get_HasClientJar,set_HasClientJar[init]
 P FMCore.Versions.LocalVersionInfo.Id : System.String | get_Id,set_Id[init]
+P FMCore.Versions.LocalVersionInfo.MetadataId : System.String | get_MetadataId,set_MetadataId[init]
 P FMCore.Versions.LocalVersionInfo.MetadataPath : System.String | get_MetadataPath,set_MetadataPath[init]
 P FMCore.Versions.LocalVersionInfo.Type : System.String | get_Type,set_Type[init]
+P FMCore.Versions.LocalVersionInfo.VersionDirectory : System.String | get_VersionDirectory,set_VersionDirectory[init]
 P FMCore.Versions.LoggingConfiguration.Argument : System.String | get_Argument,set_Argument[init]
 P FMCore.Versions.LoggingConfiguration.File : FMCore.Versions.DownloadArtifact | get_File,set_File[init]
 P FMCore.Versions.LoggingConfiguration.FileId : System.String | get_FileId,set_FileId[init]
@@ -3280,8 +3366,14 @@ P FMCore.Versions.MavenCoordinate.RelativePath : System.String | get_RelativePat
 P FMCore.Versions.MavenCoordinate.Version : System.String | get_Version,set_Version[init]
 P FMCore.Versions.ResolvedVersion.ClientDownload : FMCore.Versions.DownloadArtifact | get_ClientDownload,set_ClientDownload[init]
 P FMCore.Versions.ResolvedVersion.ClientJarId : System.String | get_ClientJarId,set_ClientJarId[init]
+P FMCore.Versions.ResolvedVersion.ClientJarRelativePath : System.String | get_ClientJarRelativePath,set_ClientJarRelativePath[init]
+P FMCore.Versions.ResolvedVersion.DirectoryName : System.String | get_DirectoryName,set_DirectoryName[init]
 P FMCore.Versions.ResolvedVersion.InheritanceChain : System.Collections.Generic.IReadOnlyList`1[System.String] | get_InheritanceChain,set_InheritanceChain[init]
+P FMCore.Versions.ResolvedVersion.IsCustom : System.Boolean | get_IsCustom,set_IsCustom[init]
 P FMCore.Versions.ResolvedVersion.Metadata : FMCore.Versions.VersionMetadata | get_Metadata,set_Metadata[init]
+P FMCore.Versions.ResolvedVersion.MetadataPath : System.String | get_MetadataPath,set_MetadataPath[init]
+P FMCore.Versions.ResolvedVersion.MinecraftVersion : System.String | get_MinecraftVersion
+P FMCore.Versions.ResolvedVersion.Warnings : System.Collections.Generic.IReadOnlyList`1[System.String] | get_Warnings,set_Warnings[init]
 P FMCore.Versions.RuleContext.Architecture : System.String | get_Architecture,set_Architecture[init]
 P FMCore.Versions.RuleContext.Current : FMCore.Versions.RuleContext | get_Current
 P FMCore.Versions.RuleContext.Features : System.Collections.Generic.IReadOnlyDictionary`2[System.String,System.Boolean] | get_Features,set_Features[init]
@@ -3346,10 +3438,4 @@ T FMCore.Versions.VersionManifest : System.Object | System.IEquatable`1[FMCore.V
 T FMCore.Versions.VersionMetadata : System.Object |
 T FMCore.Versions.VersionParser : System.Object |
 T FMCore.Versions.VersionRule : System.Object | System.IEquatable`1[FMCore.Versions.VersionRule]
-```
-
-## 根入口
-
-```text
-T FMCore.FmCore : System.Object |
 ```

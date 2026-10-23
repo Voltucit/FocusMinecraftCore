@@ -21,14 +21,14 @@ public sealed partial class ModpackInstaller
     private readonly ModrinthClient modrinth;
     private readonly HttpClient http;
     private readonly PackFiles files;
-    /// <summary>Creates root/instances/instanceId if necessary. Shared runtime content stays outside the instance transaction.</summary>
+    /// <summary>写入时自动创建 root/versions/instanceId；instanceId 是独立目录名，与整包解析得到的启动版本 ID 分别管理。实例事务不接管版本 JSON/JAR/natives。</summary>
     public ModpackInstaller(string rootDirectory, string instanceId, ModpackOptions? options = null)
     {
         try
         {
             if (!OperatingSystem.IsWindows()) throw PackArchive.Unsupported();
             root = Path.GetFullPath(rootDirectory); id = InstanceFiles.Id(instanceId);
-            GameDirectory = GameFiles.Resolve(root, "instances/" + id); files = new(GameDirectory);
+            GameDirectory = GameFiles.Resolve(root, InstanceFiles.Relative(id)); files = new(GameDirectory);
             this.options = options ?? new(); modrinth = this.options.Modrinth ?? new();
             http = this.options.DownloadClient ?? SharedDownloads;
             if (http.DefaultRequestHeaders.Any(h => h.Key.Equals("x-api-key", StringComparison.OrdinalIgnoreCase) ||
@@ -54,7 +54,7 @@ public sealed partial class ModpackInstaller
         CancellationToken cancellationToken = default) => ExecuteAsync(ct => InstallCoreAsync(archivePath, true, progress, ct), cancellationToken);
     /// <summary>Reads installed state and automatically recovers incomplete transactions. Does not make network calls.</summary>
     public Task<InstalledModpack?> GetInstalledAsync(CancellationToken cancellationToken = default) => ExecuteAsync(async ct =>
-        (await files.ReadAsync(ct).ConfigureAwait(false))?.Installed, cancellationToken);
+        (await files.ReadAsync(ct).ConfigureAwait(false))?.Installed, cancellationToken, readOnly: true);
     /// <summary>Creates the standard launcher from freshly read instance settings for manual validation. Inspect logs/exit; call ConfirmUpdateAsync only after explicit good-use confirmation.</summary>
     public Task<MinecraftLauncher> CreateValidationLauncherAsync(LaunchIdentity account, CancellationToken cancellationToken = default) => ExecuteAsync(async ct =>
     {
@@ -70,7 +70,7 @@ public sealed partial class ModpackInstaller
         var target = await ResolveAsync(archive.Info, ct).ConfigureAwait(false);
         var before = await files.ReadAsync(ct).ConfigureAwait(false);
         return (await PlanAsync(before, target, ct).ConfigureAwait(false)).Plan;
-    }, cancellationToken);
+    }, cancellationToken, readOnly: true);
     /// <summary>Explicitly confirms good use of the current update, then optionally cleans only its old backups. Process creation never calls this automatically.</summary>
     public Task<ModpackCleanupResult> ConfirmUpdateAsync(Guid updateId, CancellationToken cancellationToken = default) =>
         ExecuteAsync(ct => files.ConfirmAsync(updateId, ct), cancellationToken);
@@ -132,6 +132,7 @@ public sealed partial class ModpackInstaller
         foreach (var reference in info.Files.Where(f => !f.Optional || options.IncludeOptionalFiles))
         {
             ct.ThrowIfCancellationRequested();
+            _ = files.At(reference.Path);
             if (reference.IsOverride || !reference.Path.StartsWith("mods/", StringComparison.Ordinal)) { result.Add(new(reference)); continue; }
             if (info.Loader == null) throw PackArchive.Unsupported();
             var environment = new ModEnvironment(info.MinecraftVersion, info.Loader) { IncludePrereleases = true };
@@ -342,12 +343,16 @@ public sealed partial class ModpackInstaller
         var old = await files.StampAsync(path, ct).ConfigureAwait(false);
         if (old != next) entries.Add(new(path, old, next));
     }
-    private async Task<T> ExecuteAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct)
+    private async Task<T> ExecuteAsync<T>(Func<CancellationToken, Task<T>> action, CancellationToken ct, bool readOnly = false)
     {
         ct.ThrowIfCancellationRequested();
         try
         {
-            using var lease = InstanceLock.Acquire(root, "instances/" + id);
+            InstanceFiles.EnsureCurrentLayout(root, id);
+            if (readOnly && !Directory.Exists(GameFiles.Resolve(GameDirectory, ".fmcore/modpacks")) &&
+                !Directory.Exists(GameFiles.Resolve(GameDirectory, ".fmcore/resources")) && !InstanceLock.IsInUse(root, InstanceFiles.Relative(id)))
+                return await action(ct).ConfigureAwait(false);
+            using var lease = InstanceLock.Acquire(root, InstanceFiles.Relative(id));
             using var legacy = InstanceLock.AcquireLegacy(GameDirectory);
             await files.RecoverAsync(ct).ConfigureAwait(false);
             foreach (var source in new[] { "modrinth", "curseforge" }) await new ResourceFiles(GameDirectory, source).RecoverAsync(ct).ConfigureAwait(false);
@@ -360,7 +365,7 @@ public sealed partial class ModpackInstaller
             ResourceErrorCode.UnsafePath => ModpackErrorCode.UnsafePath, _ => ModpackErrorCode.DownloadFailed }, "资源解析、下载或更新失败；整合包事务和旧文件已保留。") { ResourceError = e.Code }; }
         catch (DownloadException e) { throw new ModpackException(e.Code == DownloadErrorCode.UnsafePath ? ModpackErrorCode.UnsafePath : ModpackErrorCode.DownloadFailed,
             "整合包下载或路径校验失败，未提交的活动文件保持原状。") { DownloadError = e.Code }; }
-        catch (InstanceException e) { throw new ModpackException(e.Code == InstanceErrorCode.Busy ? ModpackErrorCode.Busy : ModpackErrorCode.Conflict, "实例正在使用、配置已改变或路径无效。"); }
+        catch (InstanceException e) { throw new ModpackException(e.Code == InstanceErrorCode.Busy ? ModpackErrorCode.Busy : ModpackErrorCode.Conflict, e.Message); }
         catch (Exception e) when (e is FabricException or LoaderException or InstallationException or FMCore.Versions.VersionException or FMCore.Java.JavaException)
         { throw new ModpackException(ModpackErrorCode.RuntimeFailed, "整合包要求的准确游戏或加载器未能完成安装；活动实例未改变。"); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { throw new ModpackException(ModpackErrorCode.IoError, "整合包文件读写失败；未确认更新的备份和恢复记录已保留。"); }

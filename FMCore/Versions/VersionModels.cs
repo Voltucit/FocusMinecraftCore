@@ -11,7 +11,10 @@ public sealed record VersionManifest(string LatestRelease, string LatestSnapshot
 
 public sealed record DownloadArtifact(Uri Url, string? Sha1, long? Size, string? Path)
 {
-    /// <summary>True for processor-generated libraries with an empty metadata URL; Url is about:blank and must never be fetched.</summary>
+    internal IReadOnlyList<string> AlternateSha1 { get; init; } = [];
+    // Historical HTTP URLs remain readable as metadata, but never weaken the downloader's TLS policy.
+    internal bool MustRemainLocal => IsLocalOnly || Url.Scheme != "https" && !(Url.Scheme == "http" && Url.IsLoopback);
+    /// <summary>空 URL 表示仅本地使用的客户端/依赖/索引；Url 为 about:blank，永不进行网络请求。</summary>
     public bool IsLocalOnly => Url.OriginalString == "about:blank";
     public override string ToString() => Path ?? "Metadata download artifact";
 }
@@ -45,6 +48,7 @@ public sealed record LibraryMetadata(string Name, MavenCoordinate Coordinate, Do
 public sealed class VersionMetadata
 {
     internal JsonObject Document { get; }
+    internal LocalProfile? LocalProfile { get; init; }
     public string Id { get; }
     public string? InheritsFrom { get; }
     public string? Jar { get; }
@@ -78,4 +82,19 @@ public sealed class VersionMetadata
 }
 
 public sealed record ResolvedVersion(VersionMetadata Metadata, string ClientJarId, DownloadArtifact? ClientDownload,
-    IReadOnlyList<string> InheritanceChain);
+    IReadOnlyList<string> InheritanceChain)
+{
+    /// <summary>实际版本目录名；本地查询及 Launch 的 VersionId 使用此名称，不要求等于 JSON id。</summary>
+    public string DirectoryName { get; init; } = Metadata.Id;
+    /// <summary>本地启动 JSON 的绝对路径；内存构造的版本可为 null。</summary>
+    public string? MetadataPath { get; init; }
+    /// <summary>客户端 JAR 相对 Minecraft 根目录的路径；为 null 时沿用 ClientJarId 约定。</summary>
+    public string? ClientJarRelativePath { get; init; }
+    /// <summary>从 clientVersion、继承链或 jar/id 推导的基础版本标识；未知自定义配置可能仅返回其声明值。</summary>
+    public string? MinecraftVersion => Metadata.Document["clientVersion"] is JsonValue value && value.TryGetValue<string>(out var declared)
+        ? declared : InheritanceChain.Count > 1 ? InheritanceChain[0] : Metadata.Jar ?? Metadata.Id;
+    /// <summary>包含本地自定义或无法通过官方来源校验的配置，不表示不支持启动。</summary>
+    public bool IsCustom { get; init; }
+    /// <summary>固定文案的信任/完整性提示，不包含原始 JSON 或凭据。</summary>
+    public IReadOnlyList<string> Warnings { get; init; } = [];
+}

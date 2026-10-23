@@ -13,6 +13,7 @@ public sealed class InstallationException(InstallationErrorCode code, string mes
 
 public sealed record InstallationOptions
 {
+    internal bool PreserveCustomFiles { get; init; }
     public RuleContext Context { get; init; } = RuleContext.Current;
     /// <summary>Relative to the shared download root. Empty uses the root itself.</summary>
     public string GameDirectory { get; init; } = "";
@@ -25,7 +26,10 @@ public sealed record InstallationOptions
 }
 
 public sealed record InstallationProgress(InstallationStage Stage, int CompletedFiles, int TotalFiles, DownloadProgress? Download = null);
-public sealed record NativeArchive(string RelativePath, string? Sha1, long? Size, IReadOnlyList<string> Excludes);
+public sealed record NativeArchive(string RelativePath, string? Sha1, long? Size, IReadOnlyList<string> Excludes)
+{
+    internal IReadOnlyList<string> AlternateSha1 { get; init; } = [];
+}
 public sealed record NativeExtractionProgress(int CompletedArchives, int TotalArchives);
 public sealed record NativeExtractionOptions
 {

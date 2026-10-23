@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using FMCore.Downloader;
+using FMCore.Instances;
 using FMCore.Resources;
 using FMCore.Utilities;
 
@@ -19,7 +20,12 @@ internal sealed class PackFiles(string directory)
     private const string Updates = ".fmcore/modpacks/updates";
     internal static readonly JsonSerializerOptions Json = new()
     { PropertyNamingPolicy = JsonNamingPolicy.CamelCase, WriteIndented = true, MaxDepth = 32, UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow };
-    internal string At(string relative) => GameFiles.Resolve(directory, relative);
+    internal string At(string relative)
+    {
+        var path = GameFiles.Resolve(directory, relative);
+        if (InstanceFiles.IsVersionRuntimePath(directory, path)) throw PackArchive.Unsafe();
+        return path;
+    }
     internal static string Folder(Guid id) => Updates + "/" + id.ToString("N");
     internal static string Cache(ModpackFile file) => ".fmcore/modpacks/cache/" + (file.Sha1 ?? file.Sha512 ?? throw Corrupt()) + ".bin";
     internal string New(Guid id, string relative) => At(Folder(id) + "/new/" + relative);

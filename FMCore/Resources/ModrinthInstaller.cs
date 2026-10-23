@@ -18,7 +18,7 @@ public sealed class ModrinthInstaller
     public ModrinthInstaller(InstanceInfo instance, ModrinthClient? client = null, DownloadOptions? downloadOptions = null)
         : this((instance ?? throw new ArgumentNullException(nameof(instance))).RootDirectory, instance.Id, null, client, downloadOptions, instance) { }
 
-    /// <summary>Uses root/instances/instanceId with an explicit environment, including before game installation. Existing managed instances must use the snapshot constructor.</summary>
+    /// <summary>Uses root/versions/instanceId with an explicit environment, including before game installation. Existing managed instances must use the snapshot constructor.</summary>
     public ModrinthInstaller(string rootDirectory, string instanceId, ModEnvironment environment,
         ModrinthClient? client = null, DownloadOptions? downloadOptions = null)
         : this(rootDirectory, instanceId, ModrinthMetadata.Environment(environment), client, downloadOptions, null) { }
@@ -33,13 +33,13 @@ public sealed class ModrinthInstaller
         catch (DownloadException error) { throw ResourceInstance.Map(error); }
     }
 
-    /// <summary>Absolute isolated game directory. Shared versions, libraries and assets are never modified by this module.</summary>
+    /// <summary>Absolute isolated game directory. Co-located version JSON/JAR/natives and shared libraries/assets are never modified by this module.</summary>
     public string GameDirectory { get; }
     internal ModrinthInstaller WithPackScope(PackResourceScope scope) { context.PackScope = scope; files.PackScope = scope; return this; }
 
     /// <summary>Reads only FMCore-managed Modrinth receipts, recovering interrupted updates under the instance lock. Does not adopt user mods.</summary>
     public Task<IReadOnlyList<InstalledMod>> GetInstalledAsync(CancellationToken cancellationToken = default) =>
-        ExecuteAsync(async (environment, ct) => Freeze((await files.ReadAsync(environment, ct).ConfigureAwait(false)).Mods), cancellationToken);
+        ExecuteAsync(async (environment, ct) => Freeze((await files.ReadAsync(environment, ct).ConfigureAwait(false)).Mods), cancellationToken, readOnly: true);
 
     /// <summary>Installs the newest compatible release (or an explicit version), its required dependencies and an origin receipt.</summary>
     /// <remarks>Unknown/user-modified files cause Conflict. Cancellation/failure before commit restores old files. No authentication fallback or loader installation occurs.</remarks>
@@ -59,7 +59,7 @@ public sealed class ModrinthInstaller
             if (latest.Id != installed.VersionId && latest.PublishedAt > installed.PublishedAt) updates.Add(new(installed, latest));
         }
         return (IReadOnlyList<ModUpdate>)updates.AsReadOnly();
-    }, cancellationToken);
+    }, cancellationToken, readOnly: true);
 
     /// <summary>Updates one managed project and necessary dependencies. A failed update retains the previous complete files/receipt.</summary>
     public Task<ModInstallResult> UpdateAsync(string projectId, IProgress<ResourceProgress>? progress = null,
@@ -162,7 +162,7 @@ public sealed class ModrinthInstaller
             (d.ProjectId == null || d.ProjectId == project) && (d.VersionId == null || d.VersionId == version);
     }
 
-    private Task<T> ExecuteAsync<T>(Func<ModEnvironment, CancellationToken, Task<T>> action, CancellationToken ct) => context.ExecuteAsync(action, ct);
+    private Task<T> ExecuteAsync<T>(Func<ModEnvironment, CancellationToken, Task<T>> action, CancellationToken ct, bool readOnly = false) => context.ExecuteAsync(action, ct, readOnly);
     private static IReadOnlyList<InstalledMod> Freeze(IEnumerable<InstalledMod> mods) => ResourceInstance.Freeze(mods);
     private sealed class ForwardProgress(IProgress<ResourceProgress> target) : IProgress<DownloadProgress>
     { public void Report(DownloadProgress value) => target.Report(new(ResourceStage.Downloading, value)); }

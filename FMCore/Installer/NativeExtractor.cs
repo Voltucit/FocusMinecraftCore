@@ -101,7 +101,7 @@ public sealed class NativeExtractor
                 ct.ThrowIfCancellationRequested();
                 var path = GameFiles.Resolve(root, archive.RelativePath);
                 if (!File.Exists(path) || archive.Size is long size && new FileInfo(path).Length != size ||
-                    archive.Sha1 != null && !await GameFiles.HasSha1Async(path, archive.Sha1, archive.Size, ct).ConfigureAwait(false))
+                    archive.Sha1 != null && !await MatchesArchiveAsync(path, archive, ct).ConfigureAwait(false))
                     throw Invalid("原生依赖文件缺失或校验失败。");
                 foreach (var exclude in archive.Excludes) DownloadPath.ValidateRelative(exclude.TrimEnd('/', '\\'));
             }
@@ -144,6 +144,13 @@ public sealed class NativeExtractor
         catch (DownloadException e) when (e.Code == DownloadErrorCode.UnsafePath) { throw Unsafe(); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         { throw new InstallationException(InstallationErrorCode.IoError, "原生依赖读取或校验失败。"); }
+    }
+
+    private static async Task<bool> MatchesArchiveAsync(string path, NativeArchive archive, CancellationToken ct)
+    {
+        await using var input = File.OpenRead(path);
+        var actual = Convert.ToHexString(await SHA1.HashDataAsync(input, ct).ConfigureAwait(false));
+        return actual.Equals(archive.Sha1, StringComparison.OrdinalIgnoreCase) || archive.AlternateSha1.Contains(actual, StringComparer.OrdinalIgnoreCase);
     }
 
     private async Task<string> ReadEntryAsync(ZipArchiveEntry entry, Stream? output, CancellationToken ct)

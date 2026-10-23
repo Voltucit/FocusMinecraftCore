@@ -9,7 +9,9 @@ public enum VersionErrorCode
     InheritanceCycle,
     InheritanceTooDeep,
     RuleEvaluation,
-    IoError
+    IoError,
+    /// <summary>多个目录声明同一 JSON ID，继承或别名查询无法唯一定位。</summary>
+    ConflictingProfiles
 }
 
 /// <summary>Metadata errors omit raw JSON, service URLs and underlying exception text.</summary>

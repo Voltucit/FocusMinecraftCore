@@ -36,6 +36,7 @@ FMCore/
   Instances/InstanceLock.cs
   Instances/InstanceManager.cs
   Instances/InstanceModels.cs
+  Instances/InstancePaths.cs
   Java/JavaCompatibility.cs
   Java/JavaDiscovery.cs
   Java/JavaException.cs
@@ -100,9 +101,11 @@ FMCore/
   Resources/ModrinthResolution.cs
   Resources/ResourceFiles.cs
   Resources/ResourceInstance.cs
+  Resources/ResourceImages.cs
   Resources/ResourceModels.cs
   Utilities/GameFiles.cs
   Versions/GameCoreUtil.cs
+  Versions/LocalProfiles.cs
   Versions/LocalVersionInfo.cs
   Versions/MavenCoordinate.cs
   Versions/VersionException.cs

@@ -1,6 +1,6 @@
 # Modrinth 资源与 Mod 管理（T11 第一部分）
 
-本手册对应 1.0.0。每项操作的 using、参数与调用均在独立源码中；编译/运行方式见[示例目录](examples.md)。
+本手册对应当前源码。目录布局调整尚未发布，已发布包请以对应 Tag 的文档为准。每项操作的 using、参数与调用均在独立源码中；编译/运行方式见[示例目录](examples.md)。
 
 ## 最简调用
 
@@ -21,7 +21,7 @@ Console.WriteLine(result);
 
 独立、可编译的调用代码见[本模块示例](examples.md#modrinth)。
 
-目录为 `.minecraft/instances/fabric-1204/mods`。这个入口允许在安装游戏之前准备独立目录，但**不会安装游戏或加载器**；`ModEnvironment` 是调用方明确声明的目标，不代表环境已经存在。使用 `MinecraftLauncher` 时设置相同的 `RootDirectory`、`InstanceId` 及实际安装的加载器版本。已有 FMCore 托管实例请使用下面的快照入口，显式目录入口会拒绝绕过其配置检查。
+目录为 `.minecraft/versions/fabric-1204/mods`。这个入口允许在安装游戏之前准备独立目录，但**不会安装游戏或加载器**；`ModEnvironment` 是调用方明确声明的目标，不代表环境已经存在。使用 `MinecraftLauncher` 时设置相同的 `RootDirectory`、`InstanceId` 及实际安装的加载器版本。已有 FMCore 托管实例请使用下面的快照入口，显式目录入口会拒绝绕过其配置检查。
 
 自动选择同时支持目标 Minecraft 版本和加载器的最新发布日期版本，默认只采用平台标记为 `release` 的渠道；不比较版本号字符串。`IncludePrereleases=true` 允许自动选择 `beta/alpha`；显式 `versionId` 或平台必要依赖指定的版本可以采用其他渠道，但仍须通过 Minecraft/加载器检查。版本名包含 `pre` 不代表其平台渠道一定是 beta。
 
@@ -53,7 +53,7 @@ Console.WriteLine(result);
 | `GetVersionAsync(versionId, ct)` | 精确版本 ID | 保留兼容版本、加载器、文件及依赖的 `ModrinthVersion` |
 | `GetVersionByHashAsync(sha512, ct)` | 已有文件的 SHA-512 十六进制 | 对应版本；只有 404 返回 null，不会接管该文件 |
 | `ModrinthInstaller(instance, client, downloadOptions)` | 不可变 `InstanceInfo`；后两项可省略 | 自动读取本地版本和加载器，检查快照 |
-| `ModrinthInstaller(rootDirectory, instanceId, environment, client, downloadOptions)` | 实例目录固定为 root/instances/id | 明确目标，可在游戏安装前准备；拒绝已托管实例 |
+| `ModrinthInstaller(rootDirectory, instanceId, environment, client, downloadOptions)` | 实例目录固定为 root/versions/id | 明确目标，可在游戏安装前准备；拒绝已托管实例 |
 | `GetInstalledAsync(ct)` | 无额外参数 | 来源记录列表；不是任意 JAR 扫描器，不保证记录文件当前仍有效 |
 | `InstallAsync(projectId, versionId, progress, ct)` | versionId 默认 null，自动选择 | `ModInstallResult`：本次依赖闭包 Installed 和 Reused |
 | `CheckUpdatesAsync(ct)` | 当前受管项目 | `IReadOnlyList<ModUpdate>`：Installed / Available |
@@ -98,3 +98,11 @@ Console.WriteLine(result);
 - [更新单个 Mod](examples/modrinth-update.cs)
 - [单 Mod 更新进度与取消（高级）](examples/modrinth-advanced.cs)
 - [安装明确选中的文件（高级）](examples/modrinth-install-exact.cs)
+
+目录名称、启动版本 ID、共享资源和旧目录迁移规则见[目录管理](directory-layout.md)。
+
+## 1.0.2 维护候选：项目图片
+
+ModrinthProject 增加可选 Uri IconUrl 和只读 Gallery，不修改原构造函数及解构签名。搜索直接使用 icon_url，不为每个命中追加详情请求。GetProjectAsync 的 gallery 映射 ResourceImage：Url、Title、Description、Featured、CreatedAt、Ordering；缩略图未提供时 ThumbnailUrl 为 null。图片缺失不会影响查询/安装。
+
+示例：[搜索图标](examples/modrinth-search-icon.cs)、[详情图库](examples/modrinth-project-images.cs)。SDK 不下载/缓存图片、不依赖 UI，异常可选图片被忽略；完整边界见[资源图片](resource-images.md)。

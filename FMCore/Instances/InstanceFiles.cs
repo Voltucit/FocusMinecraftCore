@@ -10,7 +10,7 @@ namespace FMCore.Instances;
 internal sealed record InstanceDocument(int SchemaVersion, string Id, Guid Revision, DateTimeOffset CreatedAt,
     DateTimeOffset UpdatedAt, InstanceConfig Config);
 
-internal static class InstanceFiles
+internal static partial class InstanceFiles
 {
     internal const string Metadata = ".fmcore/instance.json";
     private const int SizeLimit = 1024 * 1024;
@@ -24,11 +24,14 @@ internal static class InstanceFiles
 
     internal static string Id(string id)
     {
-        if (string.IsNullOrEmpty(id) || id.Length > 80 || id[0] is not (>= 'a' and <= 'z' or >= '0' and <= '9') ||
-            id.Any(c => c is not (>= 'a' and <= 'z' or >= '0' and <= '9' or '-' or '_' or '.')))
-            throw new InstanceException(InstanceErrorCode.UnsafePath, "实例 ID 必须是 1–80 位小写字母、数字、点、下划线或连字符，并以字母或数字开头。");
-        DownloadPath.ValidateRelative(id);
-        return id;
+        try
+        {
+            VersionParser.Id(id);
+            if (id.StartsWith(".fmcore", StringComparison.OrdinalIgnoreCase)) throw new VersionException(VersionErrorCode.UnsafePath, "保留的目录名。");
+            return id;
+        }
+        catch (VersionException)
+        { throw new InstanceException(InstanceErrorCode.UnsafePath, "实例目录名必须是 1–180 位安全版本标识符；不允许越界、路径分隔符、设备名或 FMCore 保留名称。"); }
     }
 
     internal static InstanceConfig Freeze(InstanceConfig value)
@@ -105,7 +108,7 @@ internal static class InstanceFiles
                 ct.ThrowIfCancellationRequested();
                 Check(entry);
                 if ((File.GetAttributes(entry) & FileAttributes.Directory) != 0) pending.Push(entry);
-                else if (!GameFiles.PathComparer.Equals(entry, metadata)) files.Add(entry);
+                else if (!GameFiles.PathComparer.Equals(entry, metadata) && !IsVersionRuntimePath(directory, entry)) files.Add(entry);
             }
         }
         progress?.Report(new(0, files.Count));
@@ -119,7 +122,7 @@ internal static class InstanceFiles
         }
         foreach (var child in directories.AsEnumerable().Reverse())
         {
-            if (GameFiles.PathComparer.Equals(child, directory) || GameFiles.PathComparer.Equals(child, control)) continue;
+            if (GameFiles.PathComparer.Equals(child, directory) || GameFiles.PathComparer.Equals(child, control) || IsVersionRuntimePath(directory, child)) continue;
             ct.ThrowIfCancellationRequested();
             Check(child);
             Directory.Delete(child); // Fails safely if uncooperative writers created new files.
@@ -128,9 +131,13 @@ internal static class InstanceFiles
         Check(metadata);
         Check(control);
         Check(directory);
+        // Runtime metadata, client JAR and natives share the version directory, but are not instance data.
+        if (Directory.EnumerateFileSystemEntries(directory).Any(path =>
+            !GameFiles.PathComparer.Equals(path, control) && !IsVersionRuntimePath(directory, path)))
+            throw new IOException("删除期间实例目录出现未知文件，配置已保留，请重试。");
         File.Delete(metadata);
         Directory.Delete(control);
-        Directory.Delete(directory);
+        if (!Directory.EnumerateFileSystemEntries(directory).Any()) Directory.Delete(directory);
 
         void Check(string path)
         {

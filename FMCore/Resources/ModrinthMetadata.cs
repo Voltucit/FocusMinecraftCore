@@ -41,7 +41,8 @@ internal static class ModrinthMetadata
     internal static ModrinthSearchResult Search(JsonElement root) => Parse(() => new ModrinthSearchResult(
         System.Array.AsReadOnly(Array(root, "hits", 100).Select(p => Project(p, true)).ToArray()), Number(root, "offset"), Number(root, "limit"), Number(root, "total_hits")));
     internal static ModrinthProject Project(JsonElement value, bool search = false) => Parse(() => new ModrinthProject(
-        Token(Text(value, search ? "project_id" : "id")), Token(Text(value, "slug")), Text(value, "title"), Text(value, "description"), Text(value, "project_type")));
+        Token(Text(value, search ? "project_id" : "id")), Token(Text(value, "slug")), Text(value, "title"), Text(value, "description"), Text(value, "project_type"))
+        { IconUrl = ResourceImages.Url(value, "icon_url"), Gallery = ResourceImages.Gallery(value, false) });
     internal static IReadOnlyList<ModrinthVersion> Versions(JsonElement root) => Parse(() =>
     {
         if (root.ValueKind != JsonValueKind.Array || root.GetArrayLength() > 20000) throw Invalid();

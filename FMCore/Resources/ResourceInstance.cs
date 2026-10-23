@@ -20,7 +20,7 @@ internal sealed class ResourceInstance
     {
         try
         {
-            id = InstanceFiles.Id(instanceId); root = Path.GetFullPath(rootDirectory); relative = "instances/" + id;
+            id = InstanceFiles.Id(instanceId); root = Path.GetFullPath(rootDirectory); relative = InstanceFiles.Relative(id);
             GameDirectory = GameFiles.Resolve(root, relative); target = environment; this.instance = instance;
         }
         catch (InstanceException e) { throw Map(e); }
@@ -28,12 +28,20 @@ internal sealed class ResourceInstance
         catch (Exception e) when (e is ArgumentException or NotSupportedException) { throw ModrinthMetadata.InvalidRequest(); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException) { throw Io(); }
     }
-    internal async Task<T> ExecuteAsync<T>(Func<ModEnvironment, CancellationToken, Task<T>> action, CancellationToken ct)
+    internal async Task<T> ExecuteAsync<T>(Func<ModEnvironment, CancellationToken, Task<T>> action, CancellationToken ct, bool readOnly = false)
     {
         ct.ThrowIfCancellationRequested();
         if (PackScope is { } scope && scope.IsFor(GameDirectory)) return await action(scope.Environment, ct).ConfigureAwait(false);
         try
         {
+            InstanceFiles.EnsureCurrentLayout(root, id);
+            if (readOnly && !Directory.Exists(GameFiles.Resolve(GameDirectory, ".fmcore/resources")) &&
+                !Directory.Exists(GameFiles.Resolve(GameDirectory, ".fmcore/modpacks")) && !InstanceLock.IsInUse(root, relative))
+            {
+                if (instance != null) await InstanceFiles.ReadAsync(GameDirectory, id, ct).ConfigureAwait(false);
+                // No state or journals exist: return an empty snapshot without creating root/lock directories.
+                if (target != null) return await action(target, ct).ConfigureAwait(false);
+            }
             using var lease = InstanceLock.Acquire(root, relative);
             using var legacy = InstanceLock.AcquireLegacy(GameDirectory);
             await new PackFiles(GameDirectory).RecoverAsync(ct).ConfigureAwait(false);
@@ -66,7 +74,7 @@ internal sealed class ResourceInstance
     { Dependencies = Array.AsReadOnly(m.Dependencies.ToArray()) }).ToArray());
     private static ResourceException Map(InstanceException e) => new(e.Code switch
     { InstanceErrorCode.Busy => ResourceErrorCode.Busy, InstanceErrorCode.UnsafePath => ResourceErrorCode.UnsafePath,
-        InstanceErrorCode.NotFound => ResourceErrorCode.NotFound, _ => ResourceErrorCode.Conflict }, "实例不存在、已改变、路径无效或正在使用。");
+        InstanceErrorCode.NotFound => ResourceErrorCode.NotFound, _ => ResourceErrorCode.Conflict }, e.Message);
     internal static ResourceException Map(DownloadException e) => new(e.Code == DownloadErrorCode.UnsafePath ? ResourceErrorCode.UnsafePath : ResourceErrorCode.DownloadFailed,
         "资源文件下载或路径校验失败；尚未提交的更新保留旧 Mod。") { DownloadError = e.Code };
     private static ResourceException Io() => new(ResourceErrorCode.IoError, "无法读写实例 Mod 文件；如存在事务记录，其备份已保留。");

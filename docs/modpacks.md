@@ -1,6 +1,6 @@
 # 整合包管理（T12，当前源码）
 
-本手册对应 1.0.0。每项操作的 using、参数与调用均在独立源码中；编译/运行方式见[示例目录](examples.md)。
+本手册对应当前源码。目录布局调整尚未发布，已发布包请以对应 Tag 的文档为准。每项操作的 using、参数与调用均在独立源码中；编译/运行方式见[示例目录](examples.md)。
 
 ## 最简调用
 
@@ -15,7 +15,7 @@ Console.WriteLine($"{info.Name} {info.Version}: {info.Files.Count}");
 
 命名空间 `FMCore.Modpacks`，仅支持 **Windows / .NET 10**。本功能包含于 FocusMinecraftCore 1.0.0。
 
-`ModpackArchive` 读取 ZIP 元数据；`ModpackInstaller` 管理一个 `root/instances/id`。游戏、Libraries、Assets 由已有 Installer/Loaders 在共享根安装；实例中的 Mod、覆盖文件、两平台来源记录和版本配置作为同一事务提交。不要求依赖注入或调用方管理备份目录。
+`ModpackArchive` 读取 ZIP 元数据；`ModpackInstaller` 管理一个 `root/versions/id`。游戏、Libraries、Assets 由已有 Installer/Loaders 在共享根安装；实例中的 Mod、覆盖文件、两平台来源记录和版本配置作为同一事务提交。不要求依赖注入或调用方管理备份目录。
 
 ## 最简导入与安装
 
@@ -126,3 +126,5 @@ T12 验收：新增 89 项自动化测试，全套 819 项通过；独立 NuGet 
 - [整包验证启动器](examples/pack-validation-launcher.cs)
 
 首次整包导入/安装同样返回待确认事务；确认用户正常使用（或明确回滚）之后，才能继续更新/修改。不能只按“是否替换旧包”判断是否需要确认。
+
+目录名称、启动版本 ID、共享资源和旧目录迁移规则见[目录管理](directory-layout.md)。

@@ -33,11 +33,11 @@ public sealed record InstanceConfig
 /// <summary>Immutable instance snapshot. Read again to refresh the configuration and advisory usage state.</summary>
 public sealed class InstanceInfo
 {
-    /// <summary>Stable directory ID. Display-name changes do not change it.</summary>
+    /// <summary>稳定目录名称；创建时默认使用启动版本 ID，自定义名称、显示名和后续启动版本分别管理。</summary>
     public string Id { get; }
-    /// <summary>Shared root containing versions, libraries, assets and instances.</summary>
+    /// <summary>开发者指定的 Minecraft 根目录，versions 下存放版本及实例，libraries/assets 保持共享。</summary>
     public string RootDirectory { get; }
-    /// <summary>Absolute instance directory, always directly below RootDirectory/instances.</summary>
+    /// <summary>实例绝对路径，固定为 RootDirectory/versions/Id。</summary>
     public string GameDirectory { get; }
     /// <summary>Persisted, account-free settings.</summary>
     public InstanceConfig Config { get; }

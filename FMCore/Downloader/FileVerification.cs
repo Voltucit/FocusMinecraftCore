@@ -20,7 +20,7 @@ public sealed partial class DownloadManager
         try
         {
             DownloadPath.CheckLinks(path);
-            var state = !File.Exists(path) ? FileVerificationState.Missing
+            var state = !File.Exists(path) || request.AllowUnverifiedLocal && new FileInfo(path).Length == 0 ? FileVerificationState.Missing
                 : request.ExpectedSize is long size && new FileInfo(path).Length != size ? FileVerificationState.SizeMismatch
                 : request.ExpectedHash == null && request.ExpectedSize == null ? FileVerificationState.Unverified
                 : await IsExistingValidAsync(request, path, cancellationToken).ConfigureAwait(false) ? FileVerificationState.Valid

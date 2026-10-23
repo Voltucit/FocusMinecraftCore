@@ -97,9 +97,12 @@ public static class VersionParser
         }
         else
         {
-            var repository = Url(Text(value, "url", false) ?? "https://libraries.minecraft.net/");
-            var url = new Uri(repository.AbsoluteUri.TrimEnd('/') + "/" + coordinate.RelativePath);
-            artifact = new(url, Hash(Text(value, "sha1", false)), Size(value, "size"), coordinate.RelativePath);
+            var repository = Text(value, "url", false) ?? "https://libraries.minecraft.net/";
+            var url = repository.Length == 0 ? new Uri("about:blank") : new Uri(Url(repository).AbsoluteUri.TrimEnd('/') + "/" + coordinate.RelativePath);
+            var hashes = LegacyHashes(value);
+            var sha1 = Hash(Text(value, "sha1", false)) ?? hashes.FirstOrDefault();
+            artifact = value["natives"] == null ? new(url, sha1, Size(value, "size"), coordinate.RelativePath)
+                { AlternateSha1 = hashes.Where(h => !h.Equals(sha1, StringComparison.OrdinalIgnoreCase)).ToArray() } : null;
         }
         var natives = new Dictionary<string, string>(StringComparer.Ordinal);
         if (value["natives"] != null)
@@ -108,6 +111,15 @@ public static class VersionParser
                 var classifier = info!.GetValue<string>();
                 Id(classifier.Replace("${arch}", "64", StringComparison.Ordinal));
                 natives.Add(key, classifier);
+            }
+        if (value["downloads"] == null)
+            foreach (var classifier in natives.Values.SelectMany(n => new[] { n.Replace("${arch}", "32", StringComparison.Ordinal), n.Replace("${arch}", "64", StringComparison.Ordinal) }).Distinct(StringComparer.Ordinal))
+            {
+                var path = (coordinate with { Classifier = classifier }).RelativePath;
+                var repository = Text(value, "url", false) ?? "https://libraries.minecraft.net/";
+                var url = repository.Length == 0 ? new Uri("about:blank") : new Uri(Url(repository).AbsoluteUri.TrimEnd('/') + "/" + path);
+                var hashes = LegacyHashes(value);
+                classifiers.Add(classifier, new(url, hashes.FirstOrDefault(), null, path) { AlternateSha1 = hashes.Skip(1).ToArray() });
             }
         var excludes = value["extract"] == null || Object(value["extract"])["exclude"] == null ? []
             : Array(Object(value["extract"])["exclude"]).Select(n =>
@@ -118,6 +130,14 @@ public static class VersionParser
             }).ToArray();
         return new(name, coordinate, artifact, new ReadOnlyDictionary<string, DownloadArtifact>(classifiers),
             new ReadOnlyDictionary<string, string>(natives), System.Array.AsReadOnly(excludes), Rules(value));
+    }
+
+    private static IReadOnlyList<string> LegacyHashes(JsonObject library)
+    {
+        if (library["checksums"] == null) return [];
+        var values = Array(library["checksums"]);
+        if (values.Count > 128) throw Invalid();
+        return values.Select(v => Hash(v?.GetValue<string>()) ?? throw Invalid()).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
     }
 
     private static ArgumentValue[] Arguments(JsonArray array) => array.Select(value =>
@@ -152,10 +172,10 @@ public static class VersionParser
 
     private static DownloadArtifact Artifact(JsonObject value, string? fallbackPath = null)
     {
-        var url = Text(value, "url")!;
+        var url = Text(value, "url", false) ?? "";
         var hash = Hash(Text(value, "sha1", false));
         // An empty Forge library URL explicitly denotes an embedded or processor-generated file.
-        var local = url.Length == 0 && fallbackPath != null && hash != null;
+        var local = url.Length == 0;
         return new(local ? new Uri("about:blank") : Url(url), hash, Size(value, "size"),
             Text(value, "path", false) is string path ? Relative(path) : fallbackPath);
     }

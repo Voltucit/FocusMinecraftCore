@@ -140,7 +140,7 @@ internal sealed class PackArchive : IDisposable
     {
         SafeRelative(path);
         var top = path.Split('/')[0].ToLowerInvariant();
-        if (top.StartsWith('.') || top is "saves" or "screenshots" or "logs" or "crash-reports" or "versions" or "libraries" or "assets" or "runtime" or "accounts" ||
+        if (top.StartsWith('.') || top is "saves" or "screenshots" or "logs" or "crash-reports" or "versions" or "libraries" or "assets" or "natives" or "runtime" or "accounts" ||
             path.Split('/').Any(p => p.Contains("token", StringComparison.OrdinalIgnoreCase) || p.Contains("credential", StringComparison.OrdinalIgnoreCase) ||
                 p.Contains("account", StringComparison.OrdinalIgnoreCase) || p.Contains("secret", StringComparison.OrdinalIgnoreCase)) ||
             top is "launcher_profiles.json" or "launcher_accounts.json" or "servers.dat" or "usercache.json") throw Unsafe();

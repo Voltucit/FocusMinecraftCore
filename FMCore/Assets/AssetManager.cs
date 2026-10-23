@@ -90,7 +90,8 @@ public sealed class AssetManager(DownloadManager downloads)
     }
 
     internal static DownloadRequest IndexRequest(AssetIndexInfo info) => new(info.Download.Url, $"assets/indexes/{VersionParser.Id(info.Id)}.json")
-    { ExpectedHash = info.Download.Sha1, ExpectedSize = info.Download.Size };
+    { ExpectedHash = info.Download.Sha1, ExpectedSize = info.Download.Size, LocalOnly = info.Download.MustRemainLocal,
+        AllowUnverifiedLocal = info.Download.MustRemainLocal && info.Download.Sha1 == null };
 
     internal static IEnumerable<(AssetObject Asset, string Relative)> LayoutTargets(AssetIndex index, string indexId, string gameDirectory)
     {

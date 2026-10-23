@@ -80,7 +80,7 @@ JSON 无效、父版本缺失、继承循环或单个目录不安全时，保留
 └── versions/<id>/<id>.json
 ```
 
-远程 JSON 经下载、SHA-1（版本清单提供时）、结构及 ID 验证后，才替换缓存。已有官方版本在有缓存清单时也会重新检查 SHA-1。本地自定义配置或没有清单的离线 JSON 只能做结构与路径检查，不会被表述为通过官方哈希认证。
+远程 JSON 经下载、SHA-1（版本清单提供时）、结构及 ID 验证后，才替换缓存。SDK 已记录的官方缓存会重新检查 SHA-1；本地自定义配置遵循文末 1.0.2 的保留策略。本地自定义配置或没有清单的离线 JSON 只能做结构与路径检查，不会被表述为通过官方哈希认证。
 
 缓存读取和本地保存限制为 16 MiB，JSON 深度限制 64。路径复用 Downloader 检查，拒绝目录穿越、设备名、符号链接和 Windows 目录联接。管理器内部串行化缓存修改，不提供跨进程目录锁，也不承诺抵御恶意本地进程替换路径的竞态。
 
@@ -114,7 +114,7 @@ Windows / .NET 10 下 139 项测试通过，无失败或跳过，其中 T02 原�
 
 脱敏测试样本及其来源、校验和保留在维护者本地，不随公开仓库分发。官方接口：[Mojang 版本列表](https://piston-meta.mojang.com/mc/game/version_manifest_v2.json)、[Fabric 元数据说明](https://github.com/FabricMC/fabric-meta/blob/master/README.md)。
 
-T09-C–E：生成 Libraries 的空 URL 只有提供 SHA-1 时才可解析，DownloadArtifact.IsLocalOnly=true、Url=about:blank。额外支持文件存于 VersionMetadata.GeneratedFiles（RelativePath/Sha1/Size；JSON 扩展 fmcoreGeneratedFiles），仅允许 libraries/ 内路径，由原 Installer 清单校验，不自动加入 Classpath。已有公开签名保留，详见加载器手册。
+T09-C–E 的历史规则要求空 URL 带 SHA-1；1.0.2 另允许已有第三方本地文件缺少发布者哈希，返回 Unverified，不作完整性认证。DownloadArtifact.IsLocalOnly=true、Url=about:blank。额外支持文件存于 VersionMetadata.GeneratedFiles（RelativePath/Sha1/Size；JSON 扩展 fmcoreGeneratedFiles），仅允许 libraries/ 内路径，由原 Installer 清单校验，不自动加入 Classpath。已有公开签名保留，详见加载器手册。
 
 ## 独立调用示例
 
@@ -129,3 +129,15 @@ T09-C–E：生成 Libraries 的空 URL 只有提供 SHA-1 时才可解析，Dow
 ## T10 官方目录入口
 
 `GameCoreUtil.GetAvailableVersionsAsync(root, cachePolicy, cancellationToken)` 返回 VersionManifest，内部复用 VersionManager.GetManifestAsync。root 默认 .minecraft，缓存策略默认 PreferCache；本地查询仍使用 GetGameCoresAsync / GetGameCoreAsync，不混淆可下载版本与本地 profile。
+
+## 1.0.2 维护候选：第三方目录与版本身份
+
+使用原 GetGameCoresAsync / GetGameCoreAsync / GetLocalVersionsAsync / ResolveAsync 即可查询已有安装，不增加导入管理器。这里的“导入”是只读读取并将信息展示在宿主界面，不复制、保存或迁移已有目录。
+
+- 本地 Id / ResolvedVersion.DirectoryName 是实际目录名，也是查询和 LaunchConfig 的 VersionId；MetadataId / Metadata.Id 是原 JSON id。两者可以不同。
+- 同名 JSON 优先；没有同名 JSON 时读取该目录唯一的顶层 JSON；多个候选会报错，不猜测。继承引用可匹配唯一 JSON ID 别名；冲突返回新增 ConflictingProfiles。
+- ResolvedVersion 和 GameCoreInfo 提供真实 MetadataPath、目录、客户端相对/绝对路径、基础版本提示、主类、继承参数、IsCustom 及 Warnings。基础版本是元数据推导提示，不保证是官方目录中的版本。
+- 未识别的主类/加载器可返回 Custom，版本不会仅因未知分类被过滤。分类不承诺安装器或运行成功。
+- 外部版本不会因与官方 ID 冲突而被 Refresh 替换。SDK 下载的官方缓存保留来源/哈希记录及原刷新修复行为，外部自定义配置则保留原文件并提供信任提示。
+
+独立示例：[扫描导入](examples/external-directory-scan.cs)、[单版本查询](examples/external-version-query.cs)。完整身份及安全规则见[第三方兼容](compatibility.md)。

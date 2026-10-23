@@ -35,7 +35,12 @@ internal static class CurseForgeMetadata
         Id(value.GetProperty("id").GetInt32()), Id(value.GetProperty("gameId").GetInt32()), Text(value, "name"), Text(value, "slug"), Text(value, "summary"),
         value.TryGetProperty("classId", out var kind) && kind.ValueKind != JsonValueKind.Null ? kind.GetInt32() : null,
         value.TryGetProperty("allowModDistribution", out var distribution) && distribution.ValueKind != JsonValueKind.Null ? distribution.GetBoolean() : null,
-        value.GetProperty("isAvailable").GetBoolean()));
+        value.GetProperty("isAvailable").GetBoolean())
+        {
+            IconUrl = value.TryGetProperty("logo", out var logo) && logo.ValueKind == JsonValueKind.Object
+                ? ResourceImages.Url(logo, "thumbnailUrl") ?? ResourceImages.Url(logo, "url") : null,
+            Gallery = ResourceImages.Gallery(value, true)
+        });
     internal static CurseForgeFile File(JsonElement value) => Parse(() =>
     {
         string? sha1 = null, md5 = null;

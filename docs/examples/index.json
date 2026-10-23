@@ -693,6 +693,13 @@
     "advanced": false
   },
   {
+    "module": "instances",
+    "name": "instance-version-directories",
+    "title": "版本目录与同版本多实例",
+    "notes": "默认使用启动版本 ID，自定义目录名称与启动版本分开管理；写入时创建根目录。",
+    "advanced": false
+  },
+  {
     "module": "modrinth",
     "name": "modrinth-install-exact",
     "title": "安装明确选中的文件",
@@ -705,5 +712,54 @@
     "title": "安装明确选中的文件",
     "notes": "先查询，再把选中的版本 ID / 文件 ID 传入；安装仍验证环境和依赖。",
     "advanced": true
+  },
+  {
+    "module": "versions",
+    "name": "external-directory-scan",
+    "title": "只读导入已有 Minecraft 根目录",
+    "notes": "指定已有根目录，仅扫描信息，不复制/搬动或执行版本。",
+    "advanced": false
+  },
+  {
+    "module": "versions",
+    "name": "external-version-query",
+    "title": "查询第三方及自定义版本",
+    "notes": "使用 versions 下的实际文件夹名；区分目录名、JSON ID、基础版本和客户端路径。",
+    "advanced": false
+  },
+  {
+    "module": "launch",
+    "name": "external-version-launch",
+    "title": "启动已信任的第三方版本",
+    "notes": "显式 Java/内存/工作目录；AutoInstall=false，缺失文件明确报错，Ctrl+C 通过 SDK 停止。",
+    "advanced": true
+  },
+  {
+    "module": "modrinth",
+    "name": "modrinth-search-icon",
+    "title": "搜索结果图标",
+    "notes": "复用一次搜索响应中的 icon_url，不为每个项目附加详情请求。",
+    "advanced": false
+  },
+  {
+    "module": "modrinth",
+    "name": "modrinth-project-images",
+    "title": "详情图标与图库",
+    "notes": "返回官方 gallery 和可选图标，UI 展示和缓存由宿主负责。",
+    "advanced": false
+  },
+  {
+    "module": "curseforge",
+    "name": "curseforge-search-icon",
+    "title": "搜索结果图标",
+    "notes": "需要合法 Key，优先 logo.thumbnailUrl；不向图片 URL 附加 Key。",
+    "advanced": false
+  },
+  {
+    "module": "curseforge",
+    "name": "curseforge-project-images",
+    "title": "详情图标与截图",
+    "notes": "官方 screenshots 映射到统一 Gallery 模型，可为空。",
+    "advanced": false
   }
 ]
