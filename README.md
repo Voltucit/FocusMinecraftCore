@@ -1,5 +1,9 @@
 # FocusMinecraftCore（FMCore）
 
+
+# 当前版本由于不可控因素和代码冗余①被废弃，正在进行2.0的开发，请敬请期待。
+
+
 ## 最新版本更新
 
 当前版本 **1.0.2**。发布记录见 [GitHub Releases](https://github.com/Voltucit/FocusMinecraftCore/releases)，包信息见 [NuGet](https://www.nuget.org/packages/FocusMinecraftCore)。
