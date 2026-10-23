@@ -5,6 +5,7 @@ artifacts/
 TestResults/
 *.trx
 /packages/
+/FMCoreTestsFiles/
 
 # Local IDE state
 .idea/
