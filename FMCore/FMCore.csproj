@@ -1,44 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Description>FMCore：面向 .NET 10 / Windows 启动器开发者的 Minecraft Java 版 SDK，提供下载、版本、Java Runtime、安装、账号、启动、加载器、Mod 与整合包 API。</Description>
-    <PackageId>FocusMinecraftCore</PackageId>
-    <Version>1.0.3</Version>
-    <PackageVersion>1.0.3</PackageVersion>
-    <PackageIcon>icon.png</PackageIcon>
-    <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.3.0</FileVersion>
-    <InformationalVersion>1.0.3</InformationalVersion>
-    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
-    <Title>FocusMinecraftCore (FMCore)</Title>
-    <Authors>Voltucit</Authors>
-    <Copyright>Copyright (c) 2026 Voltucit</Copyright>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageProjectUrl>https://github.com/Voltucit/FocusMinecraftCore</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/Voltucit/FocusMinecraftCore</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
-    <PackageTags>minecraft;launcher;dotnet;sdk</PackageTags>
-    <PackageReleaseNotes>1.0.3 维护候选：按标准清单自动识别 ZIP / mrpack 整合包，兼容受控 CurseForge CDN 引用；支持普通实例导出标准 Modrinth 清单 ZIP，保留原有整包格式、事务与用户文件保护。具体范围及验证条件见中文手册。</PackageReleaseNotes>
-    <PublishRepositoryUrl>true</PublishRepositoryUrl>
-    <EmbedUntrackedSources>true</EmbedUntrackedSources>
-    <IncludeSymbols>true</IncludeSymbols>
-    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
-    <DebugType>portable</DebugType>
-    <EnablePackageValidation>true</EnablePackageValidation>
-    <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
-    <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <!-- Legacy model members are documented incrementally; new SDK entry points include XML summaries. -->
-    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <AssemblyName>FMCore</AssemblyName>
+    <RootNamespace>FMCore</RootNamespace>
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
-  <ItemGroup>
-    <None Include="../README.md" Pack="true" PackagePath="/" />
-    <None Include="../LICENSE" Pack="true" PackagePath="/" />
-    <None Include="../NOTICE.md" Pack="true" PackagePath="/" />
-    <None Include="../CHANGELOG.md" Pack="true" PackagePath="/" />
-    <PackageReference Include="System.Security.Cryptography.ProtectedData" />
-    <InternalsVisibleTo Include="FMCore.Tests" />
-    <None Include="../assets/icon.png"
-      Pack="true"
-      PackagePath="/" />
-  </ItemGroup>
 </Project>

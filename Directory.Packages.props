@@ -1,8 +1,0 @@
-<Project>
-  <PropertyGroup>
-    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
-  </PropertyGroup>
-  <ItemGroup>
-    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.10" />
-  </ItemGroup>
-</Project>
