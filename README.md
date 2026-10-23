@@ -9,6 +9,7 @@
 - Modrinth / CurseForge 搜索结果和详情提供图标地址、图库与截图信息，便于启动器直接展示。
 - 保留路径边界、文件校验和凭据过滤；现有公开 API 签名、FMCore 程序集与命名空间保持兼容。
 
+当前源码正在准备 **1.0.3**（尚未发布）：增强标准清单 ZIP 整合包兼容，支持普通实例导出可验证来源的标准整合包。使用方式与限制见[整合包手册](docs/modpacks.md)。
 
 ## 项目介绍
 
@@ -26,7 +27,7 @@ FocusMinecraftCore（简称 FMCore）是面向 .NET 启动器开发者的 Minecr
 | 启动 | 强类型配置、隔离实例、进程状态、脱敏日志、退出事件、停止和诊断 |
 | 加载器 | Fabric、Forge、NeoForge、独立 OptiFine 查询与安装 |
 | 资源 | Modrinth / CurseForge 查询、图标与图库信息、Mod 依赖安装、来源清单、更新检查和单项事务更新 |
-| 整合包 | mrpack v1 / CurseForge manifest v1 解析、导入、安装、导出、整包计划/更新、回滚及确认清理 |
+| 整合包 | 按标准清单识别 Modrinth ZIP / mrpack v1 与 CurseForge manifest v1；导入、安装、实例/整包导出、整包计划/更新、回滚及确认清理 |
 | 高级设置 | 窗口、全屏、服务器、独立最小/最大堆与自定义 JVM/游戏参数 |
 
 发布记录集中展示于顶部；完整历史保留在 [CHANGELOG](CHANGELOG.md)。

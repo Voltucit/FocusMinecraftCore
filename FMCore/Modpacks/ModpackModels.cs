@@ -64,11 +64,17 @@ public sealed record InstalledModpack(Guid Revision, ModpackInfo Pack, string? S
 public sealed record ModpackInstallResult(InstalledModpack Installed, Guid UpdateId, bool Reused);
 /// <summary>Cleanup failures are reported without changing active game files. Retry CleanupAsync with the same update ID.</summary>
 public sealed record ModpackCleanupResult(Guid UpdateId, int DeletedFiles, IReadOnlyList<string> FailedPaths);
-/// <summary>Export references pinned downloads by default. Local configs are excluded unless explicitly selected.</summary>
+/// <summary>Export exact references without bundling downloaded resources. Ordinary instances use a standard Modrinth manifest; existing packs retain their format.</summary>
 public sealed record ModpackExportOptions
 {
-    /// <summary>Include unchanged pack-owned configuration/override files. No saves, account data or unknown user files are exported.</summary>
+    /// <summary>Optional display name. Defaults to the existing pack or instance name.</summary>
+    public string? Name { get; init; }
+    /// <summary>Optional pack version, independent of Minecraft. Defaults to the existing pack version or 1.0.0 for an ordinary instance.</summary>
+    public string? Version { get; init; }
+    /// <summary>Include unchanged pack-owned overrides and explicitly selected OverridePaths. Saves, account data and runtime files remain forbidden.</summary>
     public bool IncludeOverrides { get; init; }
+    /// <summary>Explicit safe file paths relative to the instance. Requires IncludeOverrides; when nonempty, only these overrides are selected. Empty retains the existing pack-owned selection. Directories and downloaded-resource collisions are rejected.</summary>
+    public IReadOnlyList<string> OverridePaths { get; init; } = [];
     /// <summary>Explicit caller assurance that bundled binary override files may be redistributed.</summary>
     public bool AllowBinaryOverrides { get; init; }
 }

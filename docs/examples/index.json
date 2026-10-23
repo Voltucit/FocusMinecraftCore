@@ -499,8 +499,8 @@
   {
     "module": "modpacks",
     "name": "pack-read",
-    "title": "只解析整合包",
-    "notes": "支持 mrpack v1 和 CurseForge manifest v1；不提取安装。",
+    "title": "自动识别与解析整合包",
+    "notes": "按根清单识别 Modrinth ZIP / mrpack v1 与 CurseForge manifest v1；不提取安装。",
     "advanced": false
   },
   {
@@ -543,6 +543,20 @@
     "name": "pack-export",
     "title": "导出整包引用",
     "notes": "默认不导出个人文件；二进制 override 需合法再分发许可。",
+    "advanced": false
+  },
+  {
+    "module": "modpacks",
+    "name": "pack-export-instance-advanced",
+    "title": "普通实例导出配置",
+    "notes": "FMCORE_EXPORT_OVERRIDES 用分号分隔明确选择的相对文件；支持取消和错误处理，不导出存档与凭据。",
+    "advanced": true
+  },
+  {
+    "module": "modpacks",
+    "name": "pack-export-instance",
+    "title": "普通实例导出标准 ZIP",
+    "notes": "设置 FMCORE_ROOT / FMCORE_INSTANCE；根据已有版本元数据和可验证资源来源导出，不要求整包状态。",
     "advanced": false
   },
   {

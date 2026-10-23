@@ -6,10 +6,10 @@ using FMCore.Resources;
 
 namespace FMCore.Modpacks;
 
-/// <summary>Bounded, read-only import inspection for .mrpack and CurseForge manifest ZIPs.</summary>
+/// <summary>Bounded, read-only format detection from standard manifests inside ZIP archives, independently of their file extension.</summary>
 public static class ModpackArchive
 {
-    /// <summary>Parses client metadata and hashes bundled overrides without extracting anything. Optional entries remain visible in Files.</summary>
+    /// <summary>Automatically detects Modrinth or CurseForge from its root manifest, then parses client metadata and hashes overrides without extracting anything. Supports Modrinth content named .zip or .mrpack.</summary>
     public static async Task<ModpackInfo> ReadAsync(string archivePath, CancellationToken cancellationToken = default)
     {
         try { using var archive = await PackArchive.OpenAsync(archivePath, cancellationToken).ConfigureAwait(false); return archive.Info; }
@@ -53,7 +53,10 @@ internal sealed class PackArchive : IDisposable
                 for (var parent = name.LastIndexOf('/'); parent > 0; parent = name.LastIndexOf('/', parent - 1))
                     if (entries.TryGetValue(name[..parent], out var entry) && !entry.FullName.EndsWith('/')) throw Unsafe();
             var mr = entries.GetValueOrDefault("modrinth.index.json"); var cf = entries.GetValueOrDefault("manifest.json");
-            if ((mr == null) == (cf == null)) throw Invalid();
+            if (mr == null && cf == null) throw new ModpackException(ModpackErrorCode.InvalidArchive,
+                "压缩包根目录缺少 modrinth.index.json 或 manifest.json，无法识别标准整合包格式；文件扩展名不作为判断依据。");
+            if (mr != null && cf != null) throw new ModpackException(ModpackErrorCode.InvalidArchive,
+                "压缩包同时包含 Modrinth 和 CurseForge 清单，无法唯一确定整合包格式。");
             var manifest = mr ?? cf!;
             if (manifest.Length > 2 * 1024 * 1024) throw Limit();
             await using var data = new ArchiveEntryStream(manifest);
@@ -159,7 +162,8 @@ internal sealed class PackArchive : IDisposable
     {
         if (!Uri.TryCreate(value, UriKind.Absolute, out var uri) || uri.Scheme != "https" || uri.UserInfo.Length != 0 ||
             uri.Fragment.Length != 0 || !uri.IsDefaultPort || value.Any(char.IsWhiteSpace) || uri.Query.Length != 0 ||
-            uri.Host is not ("cdn.modrinth.com" or "github.com" or "raw.githubusercontent.com" or "gitlab.com")) throw Invalid();
+            uri.Host is not ("cdn.modrinth.com" or "github.com" or "raw.githubusercontent.com" or "gitlab.com" or
+                "edge.forgecdn.net" or "mediafilez.forgecdn.net" or "media.forgecdn.net")) throw Invalid();
         return uri;
     }
     private static string Text(JsonElement value, string key)

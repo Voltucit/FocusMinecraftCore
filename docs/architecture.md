@@ -84,6 +84,7 @@ FMCore/
   Modpacks/ModpackArchive.cs
   Modpacks/ModpackExport.cs
   Modpacks/ModpackInstaller.cs
+  Modpacks/ModpackInstanceExport.cs
   Modpacks/ModpackModUpdates.cs
   Modpacks/ModpackModels.cs
   Modpacks/PackFiles.cs
@@ -138,6 +139,7 @@ flowchart TD
   Loaders --> Installer
   Modpacks --> Loaders
   Modpacks --> Resources
+  Modpacks --> Versions
   Modpacks --> Instances
   Resources --> Downloader
   Java --> Downloader
@@ -161,7 +163,7 @@ flowchart TD
 | Instances | 不可变配置快照、修订更新、目录外稳定锁、安全删除与启动集成 |
 | Loaders | Fabric 元数据与 Forge/NeoForge/OptiFine 官方安装器；复用统一安装和版本模型 |
 | Resources | 两平台协议差异、必要依赖、来源记录、单项更新与失败恢复；共享实例锁和文件事务 |
-| Modpacks | 有界归档解析、精确 Runtime、内容及来源/实例包级事务、计划/确认/清理/回滚 |
+| Modpacks | 标准根清单识别、有界归档解析、精确 Runtime、内容及来源/实例包级事务、计划/确认/清理/回滚；复用版本与资源模块导出普通实例 |
 | Logging | 先过滤再事件/缓存/导出；有界证据诊断及当前会话报告候选 |
 | Models / Utilities | 已实际使用的跨模块类型与内部安全路径、哈希、原子写辅助；不扩展通用框架 |
 

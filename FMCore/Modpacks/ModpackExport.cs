@@ -9,17 +9,15 @@ namespace FMCore.Modpacks;
 
 public sealed partial class ModpackInstaller
 {
-    /// <summary>Exports the current exact references in its original format. Unknown/user files, saves, runtime and account/control data are never included.</summary>
-    /// <remarks>Does not overwrite an existing destination. Override export is opt-in and rejects sensitive text or unapproved binary redistribution.</remarks>
+    /// <summary>Exports exact references from an installed pack or an ordinary instance. Ordinary instances use a Modrinth manifest, with either a .zip or .mrpack destination; existing packs retain their format.</summary>
+    /// <remarks>Does not overwrite the destination or alter game files. Unidentified resources fail explicitly; overrides require selection and sensitive-data/distribution checks.</remarks>
     public Task ExportAsync(string destination, ModpackExportOptions? exportOptions = null, CancellationToken cancellationToken = default) => ExecuteAsync(async ct =>
     {
-        var state = await files.ReadAsync(ct).ConfigureAwait(false) ?? throw PackFiles.Conflict();
-        foreach (var owned in state.Files.Where(f => !f.File.IsOverride))
-            if (!await files.MatchesAsync(files.At(owned.File.Path), PackFiles.Stamp(owned.File), ct).ConfigureAwait(false)) throw PackFiles.Conflict();
         var settings = exportOptions ?? new();
         var path = Path.GetFullPath(destination); DownloadPath.CheckLinks(path);
         if (File.Exists(path) || Directory.Exists(path) || path.StartsWith(GameDirectory + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)) throw PackFiles.Conflict();
-        var manifest = Manifest(state);
+        var pack = await PrepareExportAsync(await files.ReadAsync(ct).ConfigureAwait(false), settings, ct).ConfigureAwait(false);
+        var manifest = Manifest(pack);
         var temporary = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {
@@ -27,13 +25,12 @@ public sealed partial class ModpackInstaller
             await using (var output = new FileStream(temporary, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, 81920, FileOptions.Asynchronous))
             {
                 using var zip = new ZipArchive(output, ZipArchiveMode.Create, true);
-                var manifestEntry = zip.CreateEntry(state.Installed.Pack.Format == ModpackFormat.Modrinth ? "modrinth.index.json" : "manifest.json");
+                var manifestEntry = zip.CreateEntry(pack.Format == ModpackFormat.Modrinth ? "modrinth.index.json" : "manifest.json");
                 await using (var bytes = manifestEntry.Open()) await bytes.WriteAsync(Encoding.UTF8.GetBytes(manifest.ToJsonString()), ct).ConfigureAwait(false);
-                foreach (var item in state.Files.Where(f => f.File.IsOverride))
+                foreach (var file in pack.Files.Where(f => f.IsOverride))
                 {
                     ct.ThrowIfCancellationRequested();
-                    if (!settings.IncludeOverrides) continue;
-                    var file = item.File; PackArchive.ContentPath(file.Path);
+                    PackArchive.ContentPath(file.Path);
                     if (!await files.MatchesAsync(files.At(file.Path), PackFiles.Stamp(file), ct).ConfigureAwait(false)) throw PackFiles.Conflict();
                     var isText = Path.GetExtension(file.Path).ToLowerInvariant() is ".json" or ".json5" or ".toml" or ".cfg" or ".txt" or ".properties" or ".yaml" or ".yml" or ".ini" or ".js" or ".zs";
                     if (!isText && !settings.AllowBinaryOverrides) throw new ModpackException(ModpackErrorCode.DownloadRestricted, "导出二进制覆盖文件需要调用方明确确认拥有分发权。");
@@ -52,6 +49,10 @@ public sealed partial class ModpackInstaller
                     await input.CopyToAsync(bytes, ct).ConfigureAwait(false);
                 }
             }
+            // Reuse the same reader as import, so every successful export is a bounded, unambiguous standard archive.
+            using (await PackArchive.OpenAsync(temporary, ct).ConfigureAwait(false)) { }
+            await VerifyExportFilesAsync(pack.Files, ct).ConfigureAwait(false);
+            ct.ThrowIfCancellationRequested();
             DownloadPath.CheckLinks(path); File.Move(temporary, path);
         }
         finally { if (File.Exists(temporary)) File.Delete(temporary); }
@@ -59,15 +60,14 @@ public sealed partial class ModpackInstaller
     }, cancellationToken);
     private static bool ContainsPrivateKeys(string value) => new[] { "password", "accessToken", "refreshToken", "api_key", "apiKey", "clientSecret", "uuid", "username", "email", "authorization" }
         .Any(key => value.Contains(key, StringComparison.OrdinalIgnoreCase));
-    private static JsonObject Manifest(PackState state)
+    private static JsonObject Manifest(ModpackInfo pack)
     {
-        var pack = state.Installed.Pack;
         if (pack.Format == ModpackFormat.Modrinth)
         {
             var dependencies = new JsonObject { ["minecraft"] = pack.MinecraftVersion };
             if (pack.Loader != null) dependencies[pack.Loader == "fabric" ? "fabric-loader" : pack.Loader] = pack.LoaderVersion;
             var list = new JsonArray();
-            foreach (var file in state.Files.Select(f => f.File).Where(f => !f.IsOverride))
+            foreach (var file in pack.Files.Where(f => !f.IsOverride))
             {
                 if (file.Sha1 == null || file.Downloads.Count == 0) throw PackArchive.Unsupported();
                 foreach (var uri in file.Downloads) PackArchive.DownloadUri(uri.AbsoluteUri);
@@ -79,7 +79,7 @@ public sealed partial class ModpackInstaller
             return new() { ["formatVersion"] = 1, ["game"] = "minecraft", ["name"] = pack.Name, ["versionId"] = pack.Version, ["dependencies"] = dependencies, ["files"] = list };
         }
         var mods = new JsonArray();
-        foreach (var file in state.Files.Select(f => f.File).Where(f => !f.IsOverride))
+        foreach (var file in pack.Files.Where(f => !f.IsOverride))
         {
             if (file.ProjectId == null || file.FileId == null) throw PackArchive.Unsupported();
             mods.Add(new JsonObject { ["projectID"] = file.ProjectId.Value, ["fileID"] = file.FileId.Value, ["required"] = !file.Optional });

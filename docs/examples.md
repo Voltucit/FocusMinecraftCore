@@ -159,13 +159,15 @@ dotnet run --project docs/examples/FMCore.Examples.csproj -p:Example=download-fi
 
 | 功能 | 完整代码 | 参数、返回值与条件 |
 | --- | --- | --- |
-| 只解析整合包 | [pack-read.cs](examples/pack-read.cs) | 支持 mrpack v1 和 CurseForge manifest v1；不提取安装。 |
+| 自动识别与解析整合包 | [pack-read.cs](examples/pack-read.cs) | 按根清单识别 Modrinth ZIP / mrpack v1 与 CurseForge manifest v1；不提取安装。 |
 | 导入整包 | [pack-import.cs](examples/pack-import.cs) | 默认完整 Runtime；CurseForge 包需配置合法平台客户端。 |
 | 安装整包 | [pack-install.cs](examples/pack-install.cs) | 默认完整 Runtime；CurseForge 包需配置合法平台客户端。 |
 | 整包更新计划 | [pack-plan.cs](examples/pack-plan.cs) | 默认完整 Runtime；CurseForge 包需配置合法平台客户端。 |
 | 整包事务更新 | [pack-update.cs](examples/pack-update.cs) | 默认完整 Runtime；CurseForge 包需配置合法平台客户端。 |
 | 读取整包状态 | [pack-installed.cs](examples/pack-installed.cs) | 参数和返回值见模块手册；取消默认不取消。 |
 | 导出整包引用 | [pack-export.cs](examples/pack-export.cs) | 默认不导出个人文件；二进制 override 需合法再分发许可。 |
+| 普通实例导出标准 ZIP | [pack-export-instance.cs](examples/pack-export-instance.cs) | 从版本元数据和可验证资源来源生成 Modrinth 清单；不要求已有整包状态。 |
+| 普通实例导出配置（高级） | [pack-export-instance-advanced.cs](examples/pack-export-instance-advanced.cs) | 明确选择覆盖文件，指定包名/版本，支持取消和错误处理。 |
 | 确认正常使用 | [pack-confirm.cs](examples/pack-confirm.cs) | 更新 ID 来自原结果；确认只在用户验证正常使用之后；清理后不可回滚。 |
 | 清理已确认备份 | [pack-cleanup.cs](examples/pack-cleanup.cs) | 更新 ID 来自原结果；确认只在用户验证正常使用之后；清理后不可回滚。 |
 | 主动回滚整包 | [pack-rollback.cs](examples/pack-rollback.cs) | 更新 ID 来自原结果；确认只在用户验证正常使用之后；清理后不可回滚。 |

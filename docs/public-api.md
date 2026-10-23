@@ -1,8 +1,8 @@
 # 公开 API 完整清单
 
-当前 **1.0.2 维护候选**，尚未公开发布。由 Release 程序集反射生成，包含公开类型、公开/受保护成员、访问器（含 init）、事件、参数默认值和枚举常量；保留 record 生成成员，可空注解以源码与 IDE 为准。
+当前 **1.0.3 维护候选**，尚未公开发布。由 Release 程序集反射生成，包含公开类型、公开/受保护成员、访问器（含 init）、事件、参数默认值和枚举常量；保留 record 生成成员，可空注解以源码与 IDE 为准。
 
-**196 个导出类型、3366 条记录**。基线的 3280 条记录全部保留，仅新增 86 条；未移除构造、方法、解构、属性或原枚举值。新增与行为迁移见 [API 调整](api-changes.md)、[第三方兼容](compatibility.md)、[资源图片](resource-images.md)。
+**196 个导出类型、3375 条记录**。1.0.2 基线的 3366 条记录全部保留，仅新增 9 条导出配置属性及访问器；未移除构造、方法、解构、属性或原枚举值。新增与行为迁移见 [API 调整](api-changes.md)、[整合包手册](modpacks.md)。
 
 ## Assets
 
@@ -484,6 +484,7 @@ T FMCore.Downloader.FileVerificationState : System.Enum | System.IComparable, Sy
 
 ```text
 M FMCore.FmCore..ctor() -> constructor | instance public
+T FMCore.FmCore : System.Object |
 ```
 
 ## Installer
@@ -2049,10 +2050,16 @@ M FMCore.Modpacks.ModpackExportOptions.GetHashCode() -> System.Int32 | instance 
 M FMCore.Modpacks.ModpackExportOptions.ToString() -> System.String | instance public
 M FMCore.Modpacks.ModpackExportOptions.get_AllowBinaryOverrides() -> System.Boolean | instance public
 M FMCore.Modpacks.ModpackExportOptions.get_IncludeOverrides() -> System.Boolean | instance public
+M FMCore.Modpacks.ModpackExportOptions.get_Name() -> System.String | instance public
+M FMCore.Modpacks.ModpackExportOptions.get_OverridePaths() -> System.Collections.Generic.IReadOnlyList`1[System.String] | instance public
+M FMCore.Modpacks.ModpackExportOptions.get_Version() -> System.String | instance public
 M FMCore.Modpacks.ModpackExportOptions.op_Equality(FMCore.Modpacks.ModpackExportOptions left, FMCore.Modpacks.ModpackExportOptions right) -> System.Boolean | static public
 M FMCore.Modpacks.ModpackExportOptions.op_Inequality(FMCore.Modpacks.ModpackExportOptions left, FMCore.Modpacks.ModpackExportOptions right) -> System.Boolean | static public
 M FMCore.Modpacks.ModpackExportOptions.set_AllowBinaryOverrides(System.Boolean value) -> System.Void | instance public
 M FMCore.Modpacks.ModpackExportOptions.set_IncludeOverrides(System.Boolean value) -> System.Void | instance public
+M FMCore.Modpacks.ModpackExportOptions.set_Name(System.String value) -> System.Void | instance public
+M FMCore.Modpacks.ModpackExportOptions.set_OverridePaths(System.Collections.Generic.IReadOnlyList`1[System.String] value) -> System.Void | instance public
+M FMCore.Modpacks.ModpackExportOptions.set_Version(System.String value) -> System.Void | instance public
 M FMCore.Modpacks.ModpackFile..ctor(System.String Path, System.Int64 Size, System.String Sha512, System.String Sha1, System.Collections.Generic.IReadOnlyList`1[System.Uri] Downloads, System.Boolean Optional = False, System.Nullable`1[System.Int32] ProjectId = default, System.Nullable`1[System.Int32] FileId = default, System.Boolean IsOverride = False) -> constructor | instance public
 M FMCore.Modpacks.ModpackFile.<Clone>$() -> FMCore.Modpacks.ModpackFile | instance public
 M FMCore.Modpacks.ModpackFile.Deconstruct(System.String& Path, System.Int64& Size, System.String& Sha512, System.String& Sha1, System.Collections.Generic.IReadOnlyList`1[System.Uri]& Downloads, System.Boolean& Optional, System.Nullable`1[System.Int32]& ProjectId, System.Nullable`1[System.Int32]& FileId, System.Boolean& IsOverride) -> System.Void | instance public
@@ -2234,6 +2241,9 @@ P FMCore.Modpacks.ModpackException.DownloadError : System.Nullable`1[FMCore.Down
 P FMCore.Modpacks.ModpackException.ResourceError : System.Nullable`1[FMCore.Resources.ResourceErrorCode] | get_ResourceError,set_ResourceError[init]
 P FMCore.Modpacks.ModpackExportOptions.AllowBinaryOverrides : System.Boolean | get_AllowBinaryOverrides,set_AllowBinaryOverrides[init]
 P FMCore.Modpacks.ModpackExportOptions.IncludeOverrides : System.Boolean | get_IncludeOverrides,set_IncludeOverrides[init]
+P FMCore.Modpacks.ModpackExportOptions.Name : System.String | get_Name,set_Name[init]
+P FMCore.Modpacks.ModpackExportOptions.OverridePaths : System.Collections.Generic.IReadOnlyList`1[System.String] | get_OverridePaths,set_OverridePaths[init]
+P FMCore.Modpacks.ModpackExportOptions.Version : System.String | get_Version,set_Version[init]
 P FMCore.Modpacks.ModpackFile.Downloads : System.Collections.Generic.IReadOnlyList`1[System.Uri] | get_Downloads,set_Downloads[init]
 P FMCore.Modpacks.ModpackFile.FileId : System.Nullable`1[System.Int32] | get_FileId,set_FileId[init]
 P FMCore.Modpacks.ModpackFile.IsOverride : System.Boolean | get_IsOverride,set_IsOverride[init]
@@ -2915,12 +2925,6 @@ T FMCore.Resources.ResourceException : System.Exception | System.Runtime.Seriali
 T FMCore.Resources.ResourceImage : System.Object | System.IEquatable`1[FMCore.Resources.ResourceImage]
 T FMCore.Resources.ResourceProgress : System.Object | System.IEquatable`1[FMCore.Resources.ResourceProgress]
 T FMCore.Resources.ResourceStage : System.Enum | System.IComparable, System.IConvertible, System.IFormattable, System.ISpanFormattable
-```
-
-## Root
-
-```text
-T FMCore.FmCore : System.Object |
 ```
 
 ## Versions

@@ -2,12 +2,12 @@
   <PropertyGroup>
     <Description>FMCore：面向 .NET 10 / Windows 启动器开发者的 Minecraft Java 版 SDK，提供下载、版本、Java Runtime、安装、账号、启动、加载器、Mod 与整合包 API。</Description>
     <PackageId>FocusMinecraftCore</PackageId>
-    <Version>1.0.2</Version>
-    <PackageVersion>1.0.2</PackageVersion>
+    <Version>1.0.3</Version>
+    <PackageVersion>1.0.3</PackageVersion>
     <PackageIcon>icon.png</PackageIcon>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
-    <FileVersion>1.0.2.0</FileVersion>
-    <InformationalVersion>1.0.2</InformationalVersion>
+    <FileVersion>1.0.3.0</FileVersion>
+    <InformationalVersion>1.0.3</InformationalVersion>
     <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
     <Title>FocusMinecraftCore (FMCore)</Title>
     <Authors>Voltucit</Authors>
@@ -18,7 +18,7 @@
     <RepositoryUrl>https://github.com/Voltucit/FocusMinecraftCore</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageTags>minecraft;launcher;dotnet;sdk</PackageTags>
-    <PackageReleaseNotes>1.0.2 维护候选：已有第三方与自定义版本解析、目录别名和本地文件兼容；Modrinth / CurseForge 图标与图库。具体范围及限制见中文手册；不代表所有加载器已完成实机测试。</PackageReleaseNotes>
+    <PackageReleaseNotes>1.0.3 维护候选：按标准清单自动识别 ZIP / mrpack 整合包，兼容受控 CurseForge CDN 引用；支持普通实例导出标准 Modrinth 清单 ZIP，保留原有整包格式、事务与用户文件保护。具体范围及验证条件见中文手册。</PackageReleaseNotes>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
     <EmbedUntrackedSources>true</EmbedUntrackedSources>
     <IncludeSymbols>true</IncludeSymbols>

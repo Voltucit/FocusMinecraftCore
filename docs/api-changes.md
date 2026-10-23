@@ -1,5 +1,16 @@
 # API 调整与迁移
 
+## 1.0.3：整合包识别与普通实例导出（未发布）
+
+- 保留 `ModpackArchive.ReadAsync`、`ModpackInstaller.ExportAsync` 及所有既有公开签名，复用相同的清单解析、安装事务和导出实现；无需新增检测管理器。
+- `.zip` 内的标准 Modrinth 根清单与 `.mrpack` 同样可读；明确报告缺少/冲突清单。清单引用可使用受控 CurseForge CDN，HTTPS、双哈希、大小及路径检查保持不变，不猜测 URL。
+- 原有整包导出默认格式和行为保留；没有整包状态的普通实例新增标准 Modrinth 清单导出能力，可指定 `.zip` 或 `.mrpack` 目标。
+- `ModpackExportOptions` 仅追加 `Name`、`Version`、`OverridePaths` 三个 init 属性，不改变既有构造、属性或默认值。普通实例包版本默认 `1.0.0`，与 Minecraft 版本无关；已有整包默认沿用原包名/版本。
+- `IncludeOverrides = true` 且 `OverridePaths` 为空时沿用旧的包托管覆盖文件选择；非空时仅导出列出的文件。配置敏感字段、二进制分发权限和保护目录检查始终生效。
+- 普通实例中的未知来源资源不会静默漏出；返回 `DownloadRestricted`，没有生成成功但缺 Mod 的包。托管资源或源文件被修改则返回 `Conflict`。
+
+完整边界和独立示例见[整合包手册](modpacks.md)。程序集版本保持 `1.0.0.0`，PackageId、程序集名与命名空间不变。
+
 ## 当前未发布源码：版本目录隔离
 
 公开类型、方法签名和枚举值保持不变。存储行为调整为根目录的 `versions/<InstanceId 或 VersionId>`，InstanceManager 的默认目录 ID 由随机值改为 VersionId；重复创建同版本默认实例返回 AlreadyExists，需要多实例时传入不同 instanceId。VersionId 与目录名分别管理。允许在仅含合法同名运行文件的版本目录附加实例配置，删除实例数据保留运行文件。

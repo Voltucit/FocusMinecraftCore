@@ -47,6 +47,10 @@
 
 开发者指定 Minecraft 根目录，写入按需创建；默认隔离、托管实例、Mod 与整包统一使用根目录的 versions/<版本或实例名>，启动版本与目录名分别管理，assets/libraries 共享。空本地查询不创建目录，旧 instances 数据需显式备份迁移。详见[目录管理](directory-layout.md)。
 
-## 1.0.2 维护候选导航
+## 1.0.2 兼容与资源图片导航
 
-[第三方目录与通用版本兼容](compatibility.md)介绍只读扫描、目录名/JSON ID/基础版本的区别及通用启动；[资源图片](resource-images.md)介绍两平台 IconUrl/Gallery。这些内容需要当前源码或本地 1.0.2 包，公开发布版本仍为 1.0.1。独立代码见[新增示例](examples.md#102-维护候选第三方目录与资源图片)。
+[第三方目录与通用版本兼容](compatibility.md)介绍只读扫描、目录名/JSON ID/基础版本的区别及通用启动；[资源图片](resource-images.md)介绍两平台 IconUrl/Gallery。这些能力需要 1.0.2 或更新的源码/包，当前发布状态以 README 为准。独立代码见[新增示例](examples.md#102-维护候选第三方目录与资源图片)。
+
+## 1.0.3 整合包增强（尚未发布）
+
+[整合包手册](modpacks.md)说明标准清单自动识别、Modrinth 结构 ZIP 的安装，以及普通实例的标准 ZIP 导出。继续使用 `ModpackArchive.ReadAsync` / `ModpackInstaller.ExportAsync`，无需私有启动器配置；最简与高级调用见[整合包独立示例](examples.md#modpacks)。
