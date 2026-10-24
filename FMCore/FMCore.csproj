@@ -1,7 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <AssemblyName>FMCore</AssemblyName>
-    <RootNamespace>FMCore</RootNamespace>
-    <IsPackable>false</IsPackable>
-  </PropertyGroup>
-</Project>

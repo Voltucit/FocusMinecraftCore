@@ -1,19 +1,21 @@
-# Build and test output
-**/bin/
-**/obj/
-artifacts/
-TestResults/
-*.trx
-/packages/
-/FMCoreTestsFiles/
+# Python environments and generated files
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+build/
+dist/
+*.egg-info/
 
-# Local IDE state
+# IDE settings
 .idea/
-.vs/
-*.user
-*.suo
-riderModule.iml
-/_ReSharper.Caches/
+.vscode/
 
 # Local credentials and game data
 .env
@@ -25,11 +27,9 @@ accounts.json
 accounts.lock
 **/tokens/*.dat
 **/tokens/.fmcore-*.tmp
+/FMCoreTestsFiles/
 
-# Local development only; keep actual files on the maintainer's computer
+# Local development records
 /AGENTS.md
-/FMCore.Cli/
-/FMCore.Tests/
-/FMCore.Local.slnx
 /docs/validation/
-/scripts/
+/artifacts/
