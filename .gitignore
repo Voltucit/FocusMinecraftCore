@@ -22,7 +22,6 @@ dist/
 .env.*
 !.env.example
 .minecraft/
-.fmcore/
 accounts.json
 accounts.lock
 **/tokens/*.dat
