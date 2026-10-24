@@ -27,6 +27,7 @@ accounts.lock
 **/tokens/*.dat
 **/tokens/.fmcore-*.tmp
 /FMCoreTestsFiles/
+/checks.py
 
 # Local development records
 /AGENTS.md
