@@ -8,3 +8,4 @@ class MinecraftVersion:
     version_type: str | None
     directory: Path
     inherits_from: str | None = None
+    main_class: str | None = None
