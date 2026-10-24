@@ -7,3 +7,4 @@ class MinecraftVersion:
     id: str
     version_type: str | None
     directory: Path
+    inherits_from: str | None = None

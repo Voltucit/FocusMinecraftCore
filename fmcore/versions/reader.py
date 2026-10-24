@@ -44,6 +44,12 @@ def get_versions(minecraft_root: str | Path) -> list[MinecraftVersion]:
 
         version_type = data.get("type")
 
+        inherits_from = data.get("inheritsFrom")
+
+        if inherits_from is not None:
+            if not isinstance(inherits_from, str) or not inherits_from.strip():
+                raise ValueError(f"父版本 ID 必须是非空字符串：{directory}")
+
         if version_type is not None and not isinstance(version_type, str):
             raise ValueError(f"版本 type 必须是字符串：{directory}")
 
@@ -51,8 +57,50 @@ def get_versions(minecraft_root: str | Path) -> list[MinecraftVersion]:
             id=data["id"],
             version_type=version_type,
             directory=directory,
+            inherits_from=inherits_from,
         )
 
         versions.append(version)
 
     return versions
+def get_parent_version(
+    version: MinecraftVersion,
+    versions: list[MinecraftVersion],
+) -> MinecraftVersion | None:
+    parent_id = version.inherits_from
+
+    if parent_id is None:
+        return None
+
+    matches = []
+
+    for candidate in versions:
+        if candidate.id == parent_id:
+            matches.append(candidate)
+
+    if not matches:
+        raise LookupError(f"版本 {version.id} 缺少父版本：{parent_id}")
+
+    if len(matches) > 1:
+        raise ValueError(f"父版本 ID 存在重名冲突：{parent_id}")
+
+    return matches[0]
+
+def get_inheritance_chain(
+    version: MinecraftVersion,
+    versions: list[MinecraftVersion],
+) -> list[MinecraftVersion]:
+    chain = []
+    visited_ids = set()
+    current = version
+
+    while current is not None:
+        if current.id in visited_ids:
+            raise ValueError(f"版本继承存在循环：再次遇到 {current.id}")
+
+        visited_ids.add(current.id)
+        chain.append(current)
+
+        current = get_parent_version(current, versions)
+
+    return chain
