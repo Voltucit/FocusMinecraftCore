@@ -1,8 +1,9 @@
 from pathlib import Path
 import json
+from .models import MinecraftVersion
 
 
-def get_version_directories(minecraft_root):
+def get_version_directories(minecraft_root: str | Path) -> list[Path]:
     versions_path = Path(minecraft_root) / "versions"
 
     if not versions_path.exists():
@@ -19,7 +20,7 @@ def get_version_directories(minecraft_root):
             directories.append(path)
 
     return directories
-def read_version_json(version_directory):
+def read_version_json(version_directory: str | Path) -> dict:
     directory = Path(version_directory)
     json_path = directory / f"{directory.name}.json"
 
@@ -35,3 +36,23 @@ def read_version_json(version_directory):
         raise ValueError(f"版本 JSON 缺少有效的 id：{json_path}")
 
     return data
+def get_versions(minecraft_root: str | Path) -> list[MinecraftVersion]:
+    versions = []
+
+    for directory in get_version_directories(minecraft_root):
+        data = read_version_json(directory)
+
+        version_type = data.get("type")
+
+        if version_type is not None and not isinstance(version_type, str):
+            raise ValueError(f"版本 type 必须是字符串：{directory}")
+
+        version = MinecraftVersion(
+            id=data["id"],
+            version_type=version_type,
+            directory=directory,
+        )
+
+        versions.append(version)
+
+    return versions
