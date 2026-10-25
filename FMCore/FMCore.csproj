@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>FMCore</AssemblyName>
+    <RootNamespace>FMCore</RootNamespace>
+    <Version>2.0.0-dev</Version>
+    <PackageId>FocusMinecraftCore</PackageId>
+    <Title>FocusMinecraftCore</Title>
+    <Description>Minecraft Java 版启动核心；2.0 开发中。</Description>
+    <RepositoryUrl>https://github.com/Voltucit/FocusMinecraftCore</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/Voltucit/FocusMinecraftCore</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="FMCore.Tests" />
+  </ItemGroup>
+</Project>

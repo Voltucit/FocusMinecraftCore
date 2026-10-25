@@ -1,55 +1,39 @@
-# 独立调用示例
+# 独立 C# 调用示例
 
-这些示例分别展示一个功能，使用真实的 `fmcore.versions` 公开接口。当前尚未配置 Python 包分发，因此请在 FMCore 源码项目根目录中执行模块命令。
+每个目录是独立控制台项目，只引用 FMCore 核心类库。环境：.NET 10 SDK、C# 14、Windows 10/11。从仓库根目录执行，路径参数请替换为实际值。
 
-## 环境
+| 项目 | 功能 | 参数 |
+| --- | --- | --- |
+| ListVersions | 查询版本列表 | [Minecraft根目录] |
+| GetVersion | 查询一个版本 | 版本ID [Minecraft根目录] |
+| InheritanceChain | 读取继承链 | 版本ID [Minecraft根目录] |
+| ResolveMainClass | 解析最终入口 | 版本ID [Minecraft根目录] |
+| ReadJavaInfo | 探测指定 Java | java.exe完整路径 |
+| ListJavas | 查询可用 Java | [额外搜索目录...] |
+| CreateOfflineAccount | 创建离线身份 | 用户名 |
+| ShowLaunchConfig | 组合并打印配置 | 版本ID java.exe路径 用户名 内存MB [Minecraft根目录] [工作目录] |
 
-使用 Python 3.13 和项目虚拟环境。Windows PowerShell 中，以下命令假设虚拟环境目录为 `.venv`。
-
-## 查询版本列表
-
-```powershell
-.\.venv\Scripts\python.exe -m examples.list_versions
-```
-
-自动汇总当前工作目录与 APPDATA 下的 `.minecraft`。明确指定根目录：
-
-```powershell
-.\.venv\Scripts\python.exe -m examples.list_versions --minecraft-root "FMCoreTestsFiles/.minecraft"
-```
-
-## 查询单个版本
+统一编译：
 
 ```powershell
-.\.venv\Scripts\python.exe -m examples.get_version 1.21.1 --minecraft-root "FMCoreTestsFiles/.minecraft"
+dotnet build .\examples\Examples.slnx -c Release
 ```
 
-版本 ID 是必需参数。省略 `--minecraft-root` 时自动发现；重名时提示错误。
-
-## 查看继承链
+不依赖本机游戏即可运行的离线身份示例：
 
 ```powershell
-.\.venv\Scripts\python.exe -m examples.inheritance_chain --minecraft-root "FMCoreTestsFiles/.minecraft"
+dotnet run --project .\examples\CreateOfflineAccount -- Steve
 ```
 
-对列表中的每个版本独立查看继承链。当前版本与父版本必须属于同一根目录。逐项失败会显示错误，程序继续检查其余项，最终以非零退出码报告存在失败。
-
-## 解析最终启动入口
+默认查询示例：
 
 ```powershell
-.\.venv\Scripts\python.exe -m examples.resolve_main_class --minecraft-root "FMCoreTestsFiles/.minecraft"
+dotnet run --project .\examples\ListVersions
+dotnet run --project .\examples\ListJavas
 ```
 
-对列表中的每个版本独立解析 mainClass，不启动 Java 或游戏。如果测试目录中仍有未声明启动入口的 error-test，这个示例会明确报错并返回 1，属于样本的预期结果。
+其他示例按表格传入参数；带空格的路径需加引号。完整源代码和项目引用都在各目录中，无需本地 CLI 或测试项目。
 
-## 返回码
+GetVersion 按 JSON ID 查询，重名时应指定根目录。继承解析需要完整父版本集合。ShowLaunchConfig 不启动游戏，不创建实例。配置的账号、Java 和内存由参数明确提供，不使用 SDK 自动推荐值。
 
-- `0`：本次查询或所有逐项检查成功；列表为空也属于成功查询。
-- `1`：查询失败，或逐项检查中至少有一项失败。
-- `2`：命令行参数错误，由 argparse 输出帮助提示。
-
-`--minecraft-root` 参数统一指向包含 `versions` 的 Minecraft 根目录。示例不会创建或修改游戏文件，也不会安装游戏、登录或启动进程。
-
-## 与手动学习脚本的关系
-
-根目录的 checks.py 是本地手动调试脚本，继续保持 Git 忽略。这些独立示例用于公开教学与功能调用验证。
+异步取消和错误处理见[高级使用指南](../docs/advanced.md)。完整可运行的 Minecraft 启动器将在第 2 阶段真正完成启动后提供，当前不放置虚构启动 API。

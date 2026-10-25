@@ -1,0 +1,11 @@
+<Solution>
+  <Project Path="../FMCore/FMCore.csproj" />
+  <Project Path="ListVersions/ListVersions.csproj" />
+  <Project Path="GetVersion/GetVersion.csproj" />
+  <Project Path="InheritanceChain/InheritanceChain.csproj" />
+  <Project Path="ResolveMainClass/ResolveMainClass.csproj" />
+  <Project Path="ReadJavaInfo/ReadJavaInfo.csproj" />
+  <Project Path="ListJavas/ListJavas.csproj" />
+  <Project Path="CreateOfflineAccount/CreateOfflineAccount.csproj" />
+  <Project Path="ShowLaunchConfig/ShowLaunchConfig.csproj" />
+</Solution>

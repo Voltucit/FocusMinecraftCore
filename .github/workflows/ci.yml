@@ -1,0 +1,26 @@
+name: 核心与公开示例构建
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
+        with:
+          global-json-file: global.json
+      - name: 构建公开核心
+        run: dotnet build FMCore.slnx --configuration Release
+      - name: 构建全部独立示例
+        run: dotnet build examples/Examples.slnx --configuration Release
+      - name: 调用离线身份示例
+        run: dotnet run --project examples/CreateOfflineAccount --configuration Release --no-build -- Steve

@@ -1,72 +1,103 @@
 # 公开 API 清单
 
-此清单对应 Python 重写第 1 阶段。正式导入入口为 `fmcore.versions`；签名中的 `Path` 来自 `pathlib`。
+适用于 `v2.0` 的 C# 开发版。目标框架 `net10.0`，语言 C# 14；程序集与命名空间前缀均为 `FMCore`。只有项目引用，无需额外第三方运行依赖。
 
-## MinecraftVersion
+## FMCore.Versions
 
-```text
-MinecraftVersion(
-    id: str,
-    version_type: str | None,
-    directory: Path,
-    inherits_from: str | None = None,
-    main_class: str | None = None,
-)
-```
-
-公开属性与参数同名。它是可变数据类，构造本身不执行 I/O 或自动校验。
-
-## get_versions
+### MinecraftVersion
 
 ```text
-get_versions(
-    minecraft_root: str | Path | None = None,
-) -> list[MinecraftVersion]
+sealed record MinecraftVersion(
+    string Id, string? VersionType, string Directory,
+    string? InheritsFrom = null, string? MainClass = null)
 ```
 
-列出指定根目录或自动发现的两处根目录中的版本。未发现时返回空列表；不同目录中的同 ID 版本保留。读取失败抛出文件、解码或数据异常。
+各参数对应同名属性。Directory 保存实际版本文件夹，Id 来自 JSON，二者可以不同。通过读取器返回的路径为绝对路径；直接构造模型不读取文件、不验证安装完整性。record 属性采用 init 语义，支持 with 复制。
 
-## get_version
+### MinecraftVersionReader
+
+无参数构造，实例不保存根目录或账号状态。
 
 ```text
-get_version(
-    minecraft_root: str | Path | None = None,
-    version_id: str | None = None,
-) -> MinecraftVersion
+string[] GetVersionDirectories(string? minecraftRoot = null)
+IReadOnlyList<MinecraftVersion> GetVersions(string? minecraftRoot = null)
+Task<IReadOnlyList<MinecraftVersion>> GetVersionsAsync(
+    string? minecraftRoot = null, CancellationToken cancellationToken = default)
+MinecraftVersion GetVersion(string versionId, string? minecraftRoot = null)
+Task<MinecraftVersion> GetVersionAsync(
+    string versionId, string? minecraftRoot = null,
+    CancellationToken cancellationToken = default)
+IReadOnlyList<MinecraftVersion> GetInheritanceChain(
+    MinecraftVersion version, IReadOnlyList<MinecraftVersion> versions)
+string ResolveMainClass(
+    MinecraftVersion version, IReadOnlyList<MinecraftVersion> versions)
 ```
 
-按 JSON ID 获取唯一版本，`version_id` 在实际调用中必填。自动发现时使用 `get_version(version_id="...")`。显式根目录可消除跨根目录歧义。
+- 根目录为空值时汇总当前工作目录与 APPDATA 的 `.minecraft`，同一实际根目录去重。显式传入空白字符串是参数错误。
+- 列表保留不同目录的重复 ID；GetVersion 要求 ID 唯一，可指定根目录消除跨根歧义。
+- 目录必须包含与文件夹同名的 JSON；查询不会创建缺失目录。JSON ID 不必等于文件夹名。
+- 继承链按当前版本到父版本排序；只在同一 Minecraft 根目录查找父版本。
+- 解析入口前验证完整继承链，子版本 mainClass 优先。
+- 参数错误为 ArgumentException / ArgumentNullException；找不到版本或父版本为 KeyNotFoundException；重名、循环、无效字段、缺少入口为 InvalidDataException。
+- JSON 语法错误为 System.Text.Json.JsonException 或其子类；文件、权限错误继续传播。异步取消为 OperationCanceledException。
 
-无效 ID 或重名为 `ValueError`，无匹配为 `LookupError`；底层读取异常继续传播。
+## FMCore.Java
 
-## get_inheritance_chain
+### JavaInfo
 
 ```text
-get_inheritance_chain(
-    version: MinecraftVersion,
-    versions: list[MinecraftVersion],
-) -> list[MinecraftVersion]
+sealed record JavaInfo(
+    string Executable, string Version, int MajorVersion,
+    string? Architecture = null)
 ```
 
-返回当前版本到最上层父版本的对象列表。父版本查找限定同一 Minecraft 根目录；缺失为 `LookupError`，重名或循环为 `ValueError`。
+属性对应参数。探测结果的 Executable 为选中程序的绝对路径；Architecture 归一化为 x86、x64、arm64，无法识别为 null。直接构造不执行探测。
 
-## resolve_main_class
+### JavaReader
+
+静态类：
 
 ```text
-resolve_main_class(
-    version: MinecraftVersion,
-    versions: list[MinecraftVersion],
-) -> str
+Task<JavaInfo> GetJavaInfoAsync(
+    string javaPath, CancellationToken cancellationToken = default)
+Task<IReadOnlyList<JavaInfo>> GetJavasAsync(
+    IEnumerable<string>? searchPaths = null,
+    Action<string, Exception>? onError = null,
+    CancellationToken cancellationToken = default)
 ```
 
-验证完整继承链后，以子版本声明优先的顺序确定启动入口。继承关系异常继续传播；整条链缺少入口时为 `ValueError`。
+- javaPath 必须指向可执行文件。固定查询超时为每个子进程 10 秒。
+- 先查询属性和版本；只有属性查询进程返回非零退出码时，才对同一个可执行文件退回普通版本查询，最多两次。超时、取消和文件错误不退回。
+- 搜索来源为 JAVA_HOME、PATH、用户 .jdks、Windows JavaSoft 注册信息和 searchPaths。额外目录检查本身、bin 和直属安装子目录，不全盘递归。
+- 同一实际程序路径去重，不自动选择 Java，不修改环境变量，不下载安装。
+- 单个候选探测失败调用 onError；省略时写入 Trace 警告，然后继续。发现阶段错误和回调自身异常传播；取消立即传播。
+- 参数错误、FileNotFoundException、IOException、UnauthorizedAccessException、Win32Exception、TimeoutException、InvalidDataException、InvalidOperationException 和 OperationCanceledException 按实际原因返回。非零退出异常不拼接完整属性输出。
 
-## 内部实现与兼容说明
+## FMCore.Accounts
 
-- `reader.py` 中的扫描、原始 JSON 读取和直接父版本定位函数仍可供现有学习脚本访问，本阶段未删除它们。
-- 面向启动器的文档使用 `fmcore.versions` 导出的上述对象和函数，不要求依赖内部文件布局。
-- `get_versions()` 的根目录参数由必填变为可选；显式路径调用继续可用。
-- `get_version()` 保留原有 `(minecraft_root, version_id)` 位置参数顺序，新增省略根目录时的关键字调用方式。
-- 自动发现从最初的单目录选择调整为两处汇总；列表保留重复 ID，单版本查询继续要求唯一匹配。
-- 同一根目录中的 JSON ID 与版本文件夹名称分别管理；JSON 文件名仍要求与文件夹同名。
-- 新增接口或行为变更时，应同步更新本清单、模块手册、独立示例和相关回归测试。
+```text
+sealed record OfflineAccount(string Username, Guid Uuid)
+static OfflineAccount OfflineAccount.Create(string username)
+```
+
+Create 接受 1–16 个英文字母、数字或下划线，保留大小写；采用 Minecraft 的 OfflinePlayer: 前缀与 MD5/v3 UUID 规则。null 为 ArgumentNullException，格式无效为 ArgumentException。直接构造模型不验证或重算 UUID。
+
+纯内存同步操作，不执行正版认证或保存账号。
+
+## FMCore.Launch
+
+```text
+sealed class LaunchConfig
+LaunchConfig(MinecraftVersion version, JavaInfo java, OfflineAccount account,
+    int maxMemoryMb, string? gameDirectory = null)
+```
+
+只读属性：Version、Java、Account、MaxMemoryMb、GameDirectory。省略工作目录时使用 version.Directory；指定自定义目录不会修改版本 ID。内存单位 MB，必须大于 0；bool 或字符串由 C# 类型系统拒绝。
+
+null 模型为 ArgumentNullException，非正内存为 ArgumentOutOfRangeException，空白目录为 ArgumentException，文件占用目录为 IOException。其余路径与权限错误传播。构造时规范化路径但不创建目录，不探测 Java、不验证授权或文件完整性，也不启动游戏。
+
+## 内部实现
+
+Internal/PathSafety、JavaDiscovery 和 Launch/LibraryResolver 不属于公开 SDK。依赖读取、系统规则、Maven 坐标和普通依赖路径仍由本地测试验证，启动器不应自行调用内部流程来拼装启动。
+
+record 的编译器生成成员不作为单独的业务入口。后续 API 或行为变化须同步更新此清单、手册、示例与测试。

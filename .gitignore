@@ -1,36 +1,44 @@
-# Python environments and generated files
-.venv/
-venv/
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.mypy_cache/
-.ruff_cache/
-.coverage
-.coverage.*
-htmlcov/
-build/
-dist/
-*.egg-info/
+# Build and test output
+**/bin/
+**/obj/
+/artifacts/
+**/TestResults/
+*.trx
+/packages/
 
-# IDE settings
+# Local IDE state
 .idea/
-.vscode/
+.vs/
+*.user
+*.suo
+riderModule.iml
+/_ReSharper.Caches/
 
 # Local credentials and game data
 .env
 .env.*
 !.env.example
 .minecraft/
+.fmcore/
 accounts.json
 accounts.lock
 **/tokens/*.dat
 **/tokens/.fmcore-*.tmp
-/FMCoreTestsFiles/
-/checks.py
 
-# Local development records
+# Local development only
 /AGENTS.md
+/FMCore.Cli/
+/FMCore.Tests/
+/FMCore.Local.slnx
+/FMCoreTestsFiles/
 /docs/validation/
-/artifacts/
+/scripts/
+
+# Python reference environments and caches stay local
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+/checks.py
 /tests/
