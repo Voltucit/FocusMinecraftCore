@@ -1,6 +1,6 @@
 using System.Runtime.Versioning;
+using FMCore.Installer;
 using Microsoft.Win32;
-using FMCore.Internal;
 
 namespace FMCore.Java;
 

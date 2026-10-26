@@ -1,5 +1,5 @@
 using System.Text.Json.Nodes;
-using FMCore.Internal;
+using FMCore.Installer;
 
 namespace FMCore.Versions;
 

@@ -8,7 +8,7 @@ Console.WriteLine(account.Username);
 Console.WriteLine(account.Uuid);
 ```
 
-用户名接受 1–16 个英文字母、数字或下划线，保留大小写。返回 OfflineAccount，包含 Username 和 Guid 类型的 Uuid，可直接传入 LaunchConfig。
+用户名接受 1–16 个英文字母、数字或下划线，保留大小写。返回 OfflineAccount，包含 Username 和 Guid 类型的 Uuid，可直接赋给 LaunchConfig.Account。
 
 Steve 对应 `5627dd98-e6be-3c21-b8a8-e92344183641`。算法与 Java 的 UUID.nameUUIDFromBytes 一致，输入为 UTF-8 编码的 OfflinePlayer: 加原始用户名；C# Guid 显式按网络字节顺序构造。这里的 MD5 用于兼容离线身份格式，不用于保存密码或认证。
 

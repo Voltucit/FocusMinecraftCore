@@ -27,6 +27,7 @@ accounts.lock
 
 # Local development only
 /AGENTS.md
+/HANDOFF.md
 /FMCore.Cli/
 /FMCore.Tests/
 /FMCore.Local.slnx

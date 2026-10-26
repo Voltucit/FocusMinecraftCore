@@ -1,7 +1,8 @@
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
-using FMCore.Internal;
+using FMCore.Installer;
 using FMCore.Versions;
+using FMCore.Java;
 
 namespace FMCore.Launch;
 
@@ -110,16 +111,401 @@ internal static class LibraryResolver
                 ? MinecraftVersionReader.ReadRequiredString(artifact, "path", "依赖文件路径必须是非空字符串。")
                 : MavenToPath(ReadName(library));
         }
+        return ResolveLibraryPath(rawPath, minecraftRoot);
+    }
+
+    internal static string? ReadNativeClassifier(
+        JsonObject library,
+        string osName)
+    {
+        ArgumentNullException.ThrowIfNull(library);
+
+        if (osName is not ("windows" or "linux" or "osx"))
+            throw new ArgumentException(
+                "osName 必须是 windows、linux 或 osx。",
+                nameof(osName));
+
+        if (!library.ContainsKey("natives"))
+            return null;
+
+        if (library["natives"] is not JsonObject natives)
+            throw new InvalidDataException(
+                "依赖库的 natives 必须是 JSON 对象。");
+
+        if (!natives.ContainsKey(osName))
+            return null;
+
+        return MinecraftVersionReader.ReadRequiredString(
+            natives,
+            osName,
+            "原生库分类名称必须是非空字符串。");
+    }
+
+    internal static string ExpandNativeClassifier(
+        string classifier,
+        JavaInfo java)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(classifier);
+        ArgumentNullException.ThrowIfNull(java);
+
+        if (!classifier.Contains("${arch}"))
+            return classifier;
+
+        string bits;
+
+        if (java.Architecture == "x86")
+            bits = "32";
+        else if (java.Architecture == "x64")
+            bits = "64";
+        else
+            throw new NotSupportedException(
+                "旧式 ${arch} 模板目前只支持 x86 或 x64 Java，请检查所选 Java 的架构。");
+
+        return classifier.Replace("${arch}", bits);
+    }
+
+    private static string ResolveLibraryPath(
+        string rawPath,
+        string minecraftRoot)
+    {
         PathSafety.ValidateWindowsRelativePath(rawPath);
-        string basePath = PathSafety.RequireDirectoryPath(Path.Combine(minecraftRoot, "libraries"));
-        string target = PathSafety.Resolve(Path.Combine(basePath, rawPath.Replace('\\', Path.DirectorySeparatorChar)
-            .Replace('/', Path.DirectorySeparatorChar)));
+
+        string basePath = PathSafety.RequireDirectoryPath(
+            Path.Combine(minecraftRoot, "libraries"));
+
+        string target = PathSafety.Resolve(Path.Combine(
+            basePath,
+            rawPath.Replace('\\', Path.DirectorySeparatorChar)
+                .Replace('/', Path.DirectorySeparatorChar)));
+
         if (!PathSafety.IsWithin(target, basePath))
-            throw new InvalidDataException("依赖文件路径越出了公共 libraries 目录。");
+            throw new InvalidDataException(
+                "依赖文件路径越出了公共 libraries 目录。");
+
         if (Directory.Exists(target))
-            throw new IOException($"依赖文件路径被目录占用：{target}");
+            throw new IOException(
+                $"依赖文件路径被目录占用：{target}");
+
         return target;
     }
+
+    internal static string? GetWindowsNativeLibraryPath(
+        JsonObject library,
+        string minecraftRoot,
+        JavaInfo java)
+    {
+        ArgumentNullException.ThrowIfNull(library);
+        ArgumentNullException.ThrowIfNull(java);
+        ArgumentException.ThrowIfNullOrWhiteSpace(minecraftRoot);
+
+        if (!IsLibraryAllowed(library, "windows"))
+            return null;
+
+        string? classifier = ReadNativeClassifier(library, "windows");
+
+        if (classifier is null)
+            return null;
+
+        if (java.Architecture is not ("x86" or "x64"))
+            throw new NotSupportedException(
+                "旧式 Windows 原生库定位目前只支持 x86 或 x64 Java。");
+
+        classifier = ExpandNativeClassifier(classifier, java);
+
+        if (library["downloads"] is not JsonObject downloads)
+            throw new InvalidDataException(
+                "原生库缺少有效的 downloads 对象。");
+
+        if (downloads["classifiers"] is not JsonObject classifiers)
+            throw new InvalidDataException(
+                "原生库缺少有效的 classifiers 对象。");
+
+        if (classifiers[classifier] is not JsonObject nativeFile)
+            throw new InvalidDataException(
+                $"缺少原生库分类下载信息：{classifier}");
+
+        string rawPath = MinecraftVersionReader.ReadRequiredString(
+            nativeFile,
+            "path",
+            "原生库下载信息缺少有效的 path。");
+
+        return ResolveLibraryPath(rawPath, minecraftRoot);
+    }
+
+
+    internal static IReadOnlyList<string> GetWindowsNativeLibraryPaths(
+        MinecraftVersion version,
+        string minecraftRoot,
+        JavaInfo java)
+    {
+        ArgumentNullException.ThrowIfNull(version);
+        ArgumentNullException.ThrowIfNull(java);
+        ArgumentException.ThrowIfNullOrWhiteSpace(minecraftRoot);
+
+        List<string> paths = [];
+        HashSet<string> seen = new(PathSafety.Comparer);
+
+        foreach (JsonObject library in GetWindowsLibraryEntries(version, minecraftRoot))
+        {
+            string? path =
+                GetWindowsNativeLibraryPath(library, minecraftRoot, java);
+
+            if (path is null)
+                continue;
+
+            if (!File.Exists(path))
+                throw new FileNotFoundException(
+                    "缺少原生库文件，请先补全游戏文件。",
+                    path);
+
+            if (seen.Add(path))
+                paths.Add(path);
+        }
+
+        return paths;
+    }
+
+    // 取得完整继承链，并确认版本属于调用方指定的 Minecraft 根目录。
+internal static IReadOnlyList<MinecraftVersion> GetValidatedChain(
+    MinecraftVersion version,
+    string minecraftRoot)
+{
+    ArgumentNullException.ThrowIfNull(version);
+    ArgumentException.ThrowIfNullOrWhiteSpace(minecraftRoot);
+
+    _ = RequireVersionDirectory(version, minecraftRoot);
+
+    MinecraftVersionReader reader = new();
+
+    IReadOnlyList<MinecraftVersion> versions =
+        reader.GetVersions(minecraftRoot);
+
+    // 现有方法已经检查缺失父版本、重名父版本和循环继承。
+    return reader.GetInheritanceChain(version, versions);
+}
+
+// 版本目录必须直接位于这个 Minecraft 根目录的 versions 下。
+private static string RequireVersionDirectory(
+    MinecraftVersion version,
+    string minecraftRoot)
+{
+    string versionsDirectory = PathSafety.RequireDirectoryPath(
+        Path.Combine(minecraftRoot, "versions"));
+
+    string directory =
+        PathSafety.RequireDirectoryPath(version.Directory);
+
+    string? parent = Path.GetDirectoryName(directory);
+
+    if (parent is null
+        || !PathSafety.Comparer.Equals(parent, versionsDirectory))
+        throw new InvalidDataException(
+            $"版本目录不属于指定根目录的 versions：{version.Directory}");
+
+    if (!Directory.Exists(directory))
+        throw new DirectoryNotFoundException(
+            $"版本目录不存在：{directory}");
+
+    return directory;
+}
+
+// 依赖身份不包含版本号，但保留分类和扩展名。
+    internal static string GetLibraryIdentity(string name)
+{
+    // 复用已有坐标校验，避免再写一套规则。
+    _ = MavenToPath(name);
+
+    int at = name.IndexOf('@');
+
+    string coordinate = at < 0 ? name : name[..at];
+    string extension = at < 0 ? "jar" : name[(at + 1)..];
+
+    string[] parts = coordinate.Split(':');
+    string classifier = parts.Length == 4 ? parts[3] : "";
+
+    return $"{parts[0]}:{parts[1]}:{classifier}@{extension}";
+}
+
+// 当前版本优先，逐层补充没有被覆盖的父版本依赖。
+internal static IReadOnlyList<JsonObject> GetWindowsLibraryEntries(
+    MinecraftVersion version,
+    string minecraftRoot)
+{
+    IReadOnlyList<MinecraftVersion> chain =
+        GetValidatedChain(version, minecraftRoot);
+
+    List<JsonObject> result = [];
+
+    Dictionary<string, (int Level, JsonObject Library)> selected =
+        new(StringComparer.Ordinal);
+
+    for (int level = 0; level < chain.Count; level++)
+    {
+        foreach (JsonObject library in ReadLibraryEntries(chain[level]))
+        {
+            if (!IsLibraryAllowed(library, "windows"))
+                continue;
+
+            string name = ReadName(library);
+            string identity = GetLibraryIdentity(name);
+
+            if (selected.TryGetValue(identity, out var previous))
+            {
+                // 更靠近当前版本的声明已经选中，父版本不能覆盖它。
+                if (previous.Level < level)
+                    continue;
+
+                // 同一层只允许完全相同的重复声明。
+                if (!JsonNode.DeepEquals(previous.Library, library))
+                    throw new InvalidDataException(
+                        $"版本 {chain[level].Id} 存在冲突的依赖声明：{name}");
+
+                continue;
+            }
+
+            selected.Add(identity, (level, library));
+            result.Add(library);
+        }
+    }
+
+    return result;
+}
+
+// 根据版本元数据确定客户端 JAR 的来源。
+internal static string GetClientJarPath(
+    MinecraftVersion version,
+    string minecraftRoot)
+{
+    IReadOnlyList<MinecraftVersion> chain =
+        GetValidatedChain(version, minecraftRoot);
+
+    MinecraftVersionReader reader = new();
+
+    foreach (MinecraftVersion current in chain)
+    {
+        JsonObject data =
+            MinecraftVersionReader.ReadVersionJson(current.Directory);
+
+        // 显式 jar 字段表示使用这个版本 ID 对应的客户端文件。
+        // 通过版本查询定位目录，不直接把 ID 拼成文件路径。
+        if (data.ContainsKey("jar"))
+        {
+            string jarVersionId =
+                MinecraftVersionReader.ReadRequiredString(
+                    data,
+                    "jar",
+                    "版本 jar 字段必须是非空字符串。");
+
+            MinecraftVersion owner =
+                reader.GetVersion(jarVersionId, minecraftRoot);
+
+            return RequireClientJar(owner, minecraftRoot);
+        }
+
+        if (data.TryGetPropertyValue(
+                "downloads", out JsonNode? downloadsNode))
+        {
+            if (downloadsNode is not JsonObject downloads)
+                throw new InvalidDataException(
+                    $"版本 {current.Id} 的 downloads 必须是对象。");
+
+            if (downloads.ContainsKey("client"))
+            {
+                if (downloads["client"] is not JsonObject)
+                    throw new InvalidDataException(
+                        $"版本 {current.Id} 的 downloads.client 必须是对象。");
+
+                return RequireClientJar(current, minecraftRoot);
+            }
+        }
+
+        // 没有继续继承的基础版本，使用自己的客户端 JAR。
+        // 这也允许没有 downloads 元数据的旧式基础版本。
+        if (current.InheritsFrom is null)
+            return RequireClientJar(current, minecraftRoot);
+    }
+
+    throw new InvalidDataException(
+        $"无法确定版本 {version.Id} 的客户端 JAR。");
+}
+
+private static string RequireClientJar(
+    MinecraftVersion owner,
+    string minecraftRoot)
+{
+    string directory =
+        RequireVersionDirectory(owner, minecraftRoot);
+
+    // 项目已经允许版本 ID 与目录名不同。
+    // 文件名按实际版本目录名确定。
+    string folderName = Path.GetFileName(directory);
+    string fileName = folderName + ".jar";
+
+    PathSafety.ValidateWindowsRelativePath(fileName);
+
+    string target = PathSafety.Resolve(
+        Path.Combine(directory, fileName));
+
+    if (!PathSafety.IsWithin(target, directory))
+        throw new InvalidDataException(
+            "客户端 JAR 路径越出了所属版本目录。");
+
+    return RequireClassPathFile(target);
+}
+
+// 所有加入 classpath 的文件，都经过同一处存在性检查。
+private static string RequireClassPathFile(string path)
+{
+    // Windows 文件名允许分号，但 classpath 会把它当成分隔符。
+    if (path.Contains(';'))
+        throw new NotSupportedException(
+            $"classpath 文件路径不能包含分号：{path}");
+
+    if (Directory.Exists(path))
+        throw new IOException(
+            $"classpath 文件路径被目录占用：{path}");
+
+    if (!File.Exists(path))
+        throw new FileNotFoundException(
+            "缺少启动所需的文件，请先补全游戏文件。",
+            path);
+
+    return path;
+}
+
+internal static string GetWindowsClassPath(
+    MinecraftVersion version,
+    string minecraftRoot)
+{
+    if (!OperatingSystem.IsWindows())
+        throw new PlatformNotSupportedException(
+            "当前 classpath 构造只支持 Windows。");
+
+    List<string> paths = [];
+    HashSet<string> seen = new(PathSafety.Comparer);
+
+    foreach (JsonObject library
+             in GetWindowsLibraryEntries(version, minecraftRoot))
+    {
+        string? path = GetLibraryPath(library, minecraftRoot);
+
+        // 只有原生库分类文件、没有普通 artifact 的声明不加入这里。
+        if (path is null)
+            continue;
+
+        path = RequireClassPathFile(path);
+
+        if (seen.Add(path))
+            paths.Add(path);
+    }
+
+    string clientJar = GetClientJarPath(version, minecraftRoot);
+
+    if (seen.Add(clientJar))
+        paths.Add(clientJar);
+
+    return string.Join(";", paths);
+}
 
     private static string ReadName(JsonObject library)
         => MinecraftVersionReader.ReadRequiredString(library, "name", "依赖库缺少有效 name。");

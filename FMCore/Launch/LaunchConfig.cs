@@ -1,30 +1,39 @@
-using FMCore.Accounts;
-using FMCore.Internal;
-using FMCore.Java;
-using FMCore.Versions;
+﻿using FMCore.Accounts;
 
 namespace FMCore.Launch;
 
-/// <summary>启动设置。目前只组合和校验配置，尚未执行 Minecraft。</summary>
 public sealed class LaunchConfig
 {
-    public MinecraftVersion Version { get; }
-    public JavaInfo Java { get; }
-    public OfflineAccount Account { get; }
-    public int MaxMemoryMb { get; }
-    public string GameDirectory { get; }
+    public required OfflineAccount Account { get; init; }
 
-    public LaunchConfig(MinecraftVersion version, JavaInfo java, OfflineAccount account,
-        int maxMemoryMb, string? gameDirectory = null)
-    {
-        ArgumentNullException.ThrowIfNull(version);
-        ArgumentNullException.ThrowIfNull(java);
-        ArgumentNullException.ThrowIfNull(account);
-        ArgumentOutOfRangeException.ThrowIfNegativeOrZero(maxMemoryMb);
-        Version = version;
-        Java = java;
-        Account = account;
-        MaxMemoryMb = maxMemoryMb;
-        GameDirectory = PathSafety.RequireDirectoryPath(gameDirectory ?? version.Directory);
-    }
+    public required GameCoreConfig GameCoreConfig { get; init; }
+
+    public required JavaConfig JavaConfig { get; init; }
+
+    public GameWindowConfig? GameWindowConfig { get; init; }
+}
+
+public sealed class GameCoreConfig
+{
+    public required string Root { get; init; }
+
+    public required string Version { get; init; }
+
+    public string? GameDirectory { get; init; }
+}
+
+public sealed class JavaConfig
+{
+    public required string JavaPath { get; init; }
+
+    public required int MaxMemoryMb { get; init; }
+
+    public IEnumerable<string>? JvmArguments { get; init; }
+}
+
+public sealed class GameWindowConfig
+{
+    public int? Width { get; init; }
+
+    public int? Height { get; init; }
 }
