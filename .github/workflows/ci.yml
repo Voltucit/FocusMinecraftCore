@@ -1,4 +1,4 @@
-name: 核心与公开示例构建
+name: 核心构建
 
 on:
   push:
