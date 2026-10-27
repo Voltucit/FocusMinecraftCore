@@ -98,11 +98,11 @@ internal static class ModernArgumentBuilder
             {
                 ["auth_player_name"] = config.Account.Username,
                 ["auth_uuid"] = config.Account.Uuid.ToString("N"),
-                ["auth_access_token"] = "0",
-                ["user_type"] = "legacy",
+                ["auth_access_token"] = config.Account.AccessToken,
+                ["user_type"] = config.Account.UserType,
                 ["user_properties"] = "{}",
-                ["clientid"] = Guid.Empty.ToString("D"),
-                ["auth_xuid"] = "0",
+                ["clientid"] = config.Account.ClientId,
+                ["auth_xuid"] = config.Account.Xuid ?? "0",
 
                 ["version_name"] = config.Version.Id,
                 ["version_type"] = versionType,

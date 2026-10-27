@@ -1,6 +1,6 @@
 # 本机 Java 查询
 
-命名空间 FMCore.Java。此阶段只发现和探测已有安装；不推荐或下载 Java。
+命名空间 FMCore.Java。JavaReader 用于发现和探测已有 Java；JavaInstaller 可安装 Mojang 提供的 Windows x64 游戏运行时，见 [Java 安装](java-installation.md)。查询本身不下载或安装。
 
 ## 获取指定 Java 的信息
 

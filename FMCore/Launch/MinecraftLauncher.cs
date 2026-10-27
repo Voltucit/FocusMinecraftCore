@@ -11,7 +11,7 @@ public sealed class MinecraftLauncher
     private readonly string _javaPath;
     private readonly string? _gameDirectory;
     private readonly string[] _jvmArguments;
-
+    private readonly string? _authlibInjectorPath;
     private int _running;
 
     public MinecraftLauncher(LaunchConfig config)
@@ -45,6 +45,10 @@ public sealed class MinecraftLauncher
         // 复制集合，避免外部修改原列表影响本次启动设置。
         _jvmArguments =
             config.JavaConfig.JvmArguments?.ToArray() ?? [];
+
+        _authlibInjectorPath = config.JavaConfig.AuthlibInjectorPath is null
+            ? null
+            : PathSafety.Resolve(config.JavaConfig.AuthlibInjectorPath);
     }
 
     public async Task<int> LaunchAsync(
@@ -116,7 +120,8 @@ public sealed class MinecraftLauncher
             gameDirectory: _gameDirectory,
             windowWidth: _config.GameWindowConfig?.Width,
             windowHeight: _config.GameWindowConfig?.Height,
-            jvmArguments: _jvmArguments);
+            jvmArguments: _jvmArguments,
+            authlibInjectorPath: _authlibInjectorPath);
 
         return await Launcher.RunWithProgressAsync(
             prepared,

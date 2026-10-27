@@ -4,7 +4,7 @@ using FMCore.Installer;
 
 namespace FMCore.Downloads;
 
-public static class FileDownloader
+public static partial class FileDownloader
 {
     // 复用连接；每次操作通过自己的取消令牌控制超时。
     private static readonly HttpClient Client = new()
@@ -12,72 +12,25 @@ public static class FileDownloader
         Timeout = System.Threading.Timeout.InfiniteTimeSpan
     };
 
-    public static async Task<DownloadResult> DownloadAsync(
+    private static async Task<DownloadResult> DownloadOnceAsync(
         DownloadRequest request,
-        Action<DownloadProgress>? onProgress = null,
-        CancellationToken cancellationToken = default)
+        string url,
+        Action<DownloadProgress>? onProgress,
+        CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(request);
         cancellationToken.ThrowIfCancellationRequested();
 
-        ArgumentException.ThrowIfNullOrWhiteSpace(request.Url);
-        ArgumentException.ThrowIfNullOrWhiteSpace(request.Sha1);
-        ArgumentOutOfRangeException.ThrowIfNegative(request.Size);
 
-        if (!Uri.TryCreate(
-                request.Url,
-                UriKind.Absolute,
-                out Uri? url)
-            || url is null
-            || url.Scheme is not ("http" or "https"))
-        {
-            throw new ArgumentException(
-                "下载地址必须是完整的 HTTP 或 HTTPS 地址。",
-                nameof(request));
-        }
 
-        if (request.Sha1.Length != 40
-            || !request.Sha1.All(Uri.IsHexDigit))
-        {
-            throw new ArgumentException(
-                "SHA-1 必须是 40 位十六进制字符串。",
-                nameof(request));
-        }
-
-        if (request.Timeout <= TimeSpan.Zero)
-            throw new ArgumentOutOfRangeException(
-                nameof(request),
-                "下载超时必须大于 0。");
-
-        string filePath = PathSafety.Resolve(request.FilePath);
-
-        PathSafety.ValidateWindowsRelativePath(
-            Path.GetFileName(filePath));
-
-        if (Directory.Exists(filePath))
-            throw new IOException(
-                $"目标文件路径被目录占用：{filePath}");
-
-        string directory = Path.GetDirectoryName(filePath)
-            ?? throw new ArgumentException(
-                "无法确定目标文件所在目录。",
-                nameof(request));
-
-        string expectedSha1 = request.Sha1.ToLowerInvariant();
+        string filePath = request.FilePath;
+        string directory = Path.GetDirectoryName(filePath)!;
+        string expectedSha1 = request.Sha1;
 
         string temporaryPath = Path.Combine(
             directory,
             $".fmcore-{Guid.NewGuid():N}.part");
 
-        using CancellationTokenSource deadline =
-            new(request.Timeout);
-
-        using CancellationTokenSource linked =
-            CancellationTokenSource.CreateLinkedTokenSource(
-                cancellationToken,
-                deadline.Token);
-
-        CancellationToken token = linked.Token;
+        CancellationToken token = cancellationToken;
 
         bool temporaryCreated = false;
         Exception? failure = null;
@@ -86,36 +39,40 @@ public static class FileDownloader
         {
             if (File.Exists(filePath))
             {
-                string existingSha1 = await VerifyExistingAsync(
-                    filePath,
-                    request.Size,
-                    expectedSha1,
-                    token).ConfigureAwait(false);
+                string? existingSha1 =
+                    await TryVerifyExistingAsync(
+                        request,
+                        token).ConfigureAwait(false);
 
-                onProgress?.Invoke(new DownloadProgress(
-                    filePath,
-                    request.Size,
-                    request.Size));
+                if (existingSha1 is not null)
+                {
+                    onProgress?.Invoke(new DownloadProgress(
+                        filePath,
+                        request.Size,
+                        request.Size)
+                    {
+                        AlreadyPresent = true
+                    });
 
-                token.ThrowIfCancellationRequested();
+                    token.ThrowIfCancellationRequested();
 
-                return new DownloadResult(
-                    filePath,
-                    request.Size,
-                    existingSha1,
-                    AlreadyPresent: true);
+                    return new DownloadResult(
+                        filePath,
+                        request.Size,
+                        existingSha1,
+                        AlreadyPresent: true);
+                }
             }
 
             onProgress?.Invoke(new DownloadProgress(
                 filePath, 0, request.Size));
 
-            using HttpResponseMessage response =
-                await Client.GetAsync(
+            using HttpResponseMessage response = await Client.GetAsync(
                     url,
                     HttpCompletionOption.ResponseHeadersRead,
                     token).ConfigureAwait(false);
 
-            response.EnsureSuccessStatusCode();
+            EnsureSuccessfulResponse(response);
 
             if (response.Content.Headers.ContentLength
                     is long contentLength
@@ -197,31 +154,18 @@ public static class FileDownloader
 
             token.ThrowIfCancellationRequested();
 
-            // 临时文件与目标位于同一目录，且不覆盖已有目标。
-            File.Move(
+            DownloadResult result = await CommitAsync(
+                request,
                 temporaryPath,
-                filePath,
-                overwrite: false);
+                received,
+                actualSha1,
+                token).ConfigureAwait(false);
 
             temporaryCreated = false;
 
-            return new DownloadResult(
-                filePath,
-                received,
-                actualSha1,
-                AlreadyPresent: false);
+            return result;
         }
-        catch (OperationCanceledException error)
-            when (deadline.IsCancellationRequested
-                && !cancellationToken.IsCancellationRequested)
-        {
-            TimeoutException timeoutError = new(
-                "文件下载或校验超时。",
-                error);
 
-            failure = timeoutError;
-            throw timeoutError;
-        }
         catch (Exception error)
         {
             failure = error;

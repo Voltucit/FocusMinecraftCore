@@ -42,7 +42,7 @@ static void ReportProgress(LaunchProgress progress)
 
 ## 命名空间
 
-- `FMCore.Accounts`：离线身份。
+- `FMCore.Accounts`：离线身份、Microsoft 登录结果与统一启动账号。
 - `FMCore.Launch`：分组配置、启动入口和阶段进度。
 - `FMCore.Versions`、`FMCore.Java`：仅在需要单独查询或使用高级入口时引用。
 
@@ -52,7 +52,7 @@ static void ReportProgress(LaunchProgress progress)
 
 | 属性 | 类型 | 要求 |
 | --- | --- | --- |
-| Account | OfflineAccount | 必填，通常使用 OfflineAccount.Create |
+| Account | IMinecraftAccount | 必填，可使用 OfflineAccount.Create 或 MicrosoftAuthenticator 登录结果 |
 | GameCoreConfig | GameCoreConfig | 必填，指定游戏根目录、版本和可选工作目录 |
 | JavaConfig | JavaConfig | 必填，指定 Java、内存和可选额外 JVM 参数 |
 | GameWindowConfig | GameWindowConfig? | 可省略，指定初始窗口宽高 |
@@ -296,3 +296,9 @@ LaunchButton.Click += async (_, _) =>
 旧式参数暂不支持双引号分组。新版参数流程暂不支持旧式 natives 映射；virtual、map_to_resources 资源映射、更旧的仅 assets 字段格式、正版认证与自动补全尚未实现。没有真实 x86 或 ARM64 游戏运行证据。
 
 原生库使用版本目录中的独立 natives 目录，成功或后续启动失败后暂时保留。旧式解压校验路径、链接、冲突、长度与 CRC32，失败仅清理本次创建内容。上限为 64 包、4096 条目、单包 128 MiB、总输入 512 MiB、单文件 64 MiB、总输出 256 MiB；CRC32 不代替来源和清单哈希认证。
+
+## 使用 Microsoft 正版账号
+
+MicrosoftAuthenticator.LoginAsync 返回的 MicrosoftAccount 可直接赋给 LaunchConfig.Account。Client ID 由启动器作者提供，完整授权与启动示例见 [Microsoft 登录](microsoft-login.md)。已有离线调用保持可用。
+
+新旧参数构造均读取账号实际 AccessToken 和 UserType；新版同时使用 ClientId 及可选 Xuid。启动前检查 MicrosoftAccount.ExpiresAt，已过期则要求重新登录。进度不打印令牌，CLI 正版分支不输出完整启动参数。用户已反馈正版账号登录并进入游戏成功，不据此宣称所有服务器联机、账号类型及授权错误均已实测。

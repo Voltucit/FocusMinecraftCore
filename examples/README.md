@@ -13,24 +13,9 @@
 | ReadJavaInfo | 探测指定 Java | Java完整路径 |
 | ListJavas | 查询候选 Java | [额外目录...] |
 | CreateOfflineAccount | 离线身份 | 用户名 |
-| ShowLaunchConfig | 打印已解析的高级配置 | 版本ID Java路径 用户名 内存MB [根目录] [工作目录] |
+| ShowLaunchConfig | 打印分组启动配置 | 版本ID Java路径 用户名 内存MB [根目录] [工作目录] |
 
-ShowLaunchConfig 仍演示 PreparedLaunchConfig，不运行游戏、不创建实例。它不代替新入口的完整启动示例。
-
-## 当前需要同步的一行
-
-[ShowLaunchConfig/Program.cs](ShowLaunchConfig/Program.cs) 尚有一处旧式类型名。保持现有参数和打印代码，把构造语句的声明改为：
-
-```csharp
-PreparedLaunchConfig config = new(
-    version,
-    java,
-    account,
-    int.Parse(args[3], CultureInfo.InvariantCulture),
-    args.ElementAtOrDefault(5));
-```
-
-这是本轮交付中待用户亲自写入的 C# 修正。CLI 不引用该项目，本次游戏启动成功不等于这个示例已经编译通过。同步前不宣称全部独立示例可构建。
+ShowLaunchConfig 使用分组 LaunchConfig 打印配置，不运行游戏。它不代替真实启动验收。原版安装与在线版本列表的完整调用见 [安装手册](../docs/installation.md)。
 
 ## 使用与核对
 
@@ -40,7 +25,7 @@ PreparedLaunchConfig config = new(
 dotnet run --project ./examples/CreateOfflineAccount -- Steve
 ```
 
-修正配置示例后，开发者需要构建示例时使用：
+开发者需要构建示例时使用：
 
 ```powershell
 dotnet build ./examples/Examples.slnx -c Release

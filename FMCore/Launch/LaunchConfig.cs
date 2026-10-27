@@ -4,11 +4,13 @@ namespace FMCore.Launch;
 
 public sealed class LaunchConfig
 {
-    public required OfflineAccount Account { get; init; }
+    public required IMinecraftAccount Account { get; init; }
 
     public required GameCoreConfig GameCoreConfig { get; init; }
 
     public required JavaConfig JavaConfig { get; init; }
+
+
 
     public GameWindowConfig? GameWindowConfig { get; init; }
 }
@@ -29,6 +31,8 @@ public sealed class JavaConfig
     public required int MaxMemoryMb { get; init; }
 
     public IEnumerable<string>? JvmArguments { get; init; }
+
+    public string? AuthlibInjectorPath { get; init; }
 }
 
 public sealed class GameWindowConfig

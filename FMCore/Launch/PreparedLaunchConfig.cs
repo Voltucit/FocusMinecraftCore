@@ -10,7 +10,7 @@ public sealed class PreparedLaunchConfig
 {
     public MinecraftVersion Version { get; }
     public JavaInfo Java { get; }
-    public OfflineAccount Account { get; }
+    public IMinecraftAccount Account { get; }
     public int MaxMemoryMb { get; }
     public string GameDirectory { get; }
 
@@ -19,15 +19,18 @@ public sealed class PreparedLaunchConfig
 
     public IReadOnlyList<string> JvmArguments { get; }
 
+    public string? AuthlibInjectorPath { get; }
+
     public PreparedLaunchConfig(
         MinecraftVersion version,
         JavaInfo java,
-        OfflineAccount account,
+        IMinecraftAccount account,
         int maxMemoryMb,
         string? gameDirectory = null,
         int? windowWidth = null,
         int? windowHeight = null,
-        IEnumerable<string>? jvmArguments = null)
+        IEnumerable<string>? jvmArguments = null,
+        string? authlibInjectorPath = null)
     {
         ArgumentNullException.ThrowIfNull(version);
         ArgumentNullException.ThrowIfNull(java);
@@ -62,7 +65,35 @@ public sealed class PreparedLaunchConfig
         WindowHeight = windowHeight;
 
         JvmArguments = CopyJvmArguments(jvmArguments);
+
+        if (authlibInjectorPath is not null)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(authlibInjectorPath);
+
+            string agentPath = PathSafety.Resolve(authlibInjectorPath);
+
+            if (agentPath.Contains('=') || agentPath.Contains('\0'))
+            {
+                throw new ArgumentException(
+                    "authlib-injector 路径不能包含等号或空字符。",
+                    nameof(authlibInjectorPath));
+            }
+
+            if (!File.Exists(agentPath))
+                throw new FileNotFoundException("找不到 authlib-injector JAR。", agentPath);
+
+            AuthlibInjectorPath = agentPath;
+        }
+
+        if (account is YggdrasilAccount && AuthlibInjectorPath is null)
+        {
+            throw new ArgumentException(
+                "外置验证账号启动时必须设置 AuthlibInjectorPath。",
+                nameof(authlibInjectorPath));
+        }
+
     }
+
 
     private static IReadOnlyList<string> CopyJvmArguments(
         IEnumerable<string>? jvmArguments)
@@ -83,7 +114,8 @@ public sealed class PreparedLaunchConfig
             "-Djava.class.path",
             "-Djava.library.path",
             "-Dfile.encoding",
-            "-Dlog4j.configurationFile"
+            "-Dlog4j.configurationFile",
+            "-Dauthlibinjector.yggdrasil.prefetched",
         ];
 
         foreach (string argument in jvmArguments)

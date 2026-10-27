@@ -18,13 +18,13 @@ internal static class LaunchRules
             "is_quick_play_realms"
         };
 
-    internal static bool IsAllowed(
+    internal static bool IsAllowedForArchitecture(
         JsonObject entry,
-        JavaInfo java,
+        string? targetArchitecture,
         IReadOnlyDictionary<string, bool>? features = null)
     {
         ArgumentNullException.ThrowIfNull(entry);
-        ArgumentNullException.ThrowIfNull(java);
+
 
         if (!OperatingSystem.IsWindows())
             throw new PlatformNotSupportedException(
@@ -96,7 +96,7 @@ internal static class LaunchRules
                             "arch",
                             "os.arch 必须是非空字符串。");
 
-                    string architecture = java.Architecture switch
+                    string architecture = targetArchitecture switch
                     {
                         "x86" => "x86",
                         "x64" => "amd64",
@@ -181,5 +181,18 @@ internal static class LaunchRules
                 "系统条件的正则表达式无效或匹配超时。",
                 error);
         }
+    }
+
+    internal static bool IsAllowed(
+        JsonObject entry,
+        JavaInfo java,
+        IReadOnlyDictionary<string, bool>? features = null)
+    {
+        ArgumentNullException.ThrowIfNull(java);
+
+        return IsAllowedForArchitecture(
+            entry,
+            java.Architecture,
+            features);
     }
 }

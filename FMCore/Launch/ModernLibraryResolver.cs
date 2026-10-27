@@ -7,13 +7,13 @@ namespace FMCore.Launch;
 
 internal static class ModernLibraryResolver
 {
-    internal static IReadOnlyList<JsonObject> ReadLibraries(
+    internal static IReadOnlyList<JsonObject> ReadLibrariesForArchitecture(
         MinecraftVersion version,
         string minecraftRoot,
-        JavaInfo java,
+        string? targetArchitecture,
         IReadOnlyDictionary<string,bool>?features=null)
     {
-        ArgumentNullException.ThrowIfNull(java);
+
 
         IReadOnlyList<MinecraftVersion> chain =
             LibraryResolver.GetValidatedChain(
@@ -35,13 +35,22 @@ internal static class ModernLibraryResolver
             foreach (JsonObject library
                      in LibraryResolver.ReadLibraryEntries(current))
             {
-                if (!LaunchRules.IsAllowed(library, java,features))
+                if (!LaunchRules.IsAllowedForArchitecture(
+                        library,
+                        targetArchitecture,
+                        features))
+                {
                     continue;
+                }
 
                 string name = GetName(library);
 
-                if (!MatchesNativeArchitecture(name, java))
+                if (!MatchesNativeArchitecture(
+                        name,
+                        targetArchitecture))
+                {
                     continue;
+                }
 
                 string identity =
                     LibraryResolver.GetLibraryIdentity(name);
@@ -119,7 +128,7 @@ internal static class ModernLibraryResolver
 
     private static bool MatchesNativeArchitecture(
         string name,
-        JavaInfo java)
+        string? targetArchitecture)
     {
         string coordinate = name.Split('@')[0];
         string[] parts = coordinate.Split(':');
@@ -142,7 +151,7 @@ internal static class ModernLibraryResolver
             throw new NotSupportedException(
                 $"暂未支持原生库分类：{classifier}");
 
-        string expected = java.Architecture switch
+        string expected = targetArchitecture switch
         {
             "x64" => "natives-windows",
             "x86" => "natives-windows-x86",
@@ -179,4 +188,19 @@ internal static class ModernLibraryResolver
     private static string GetName(JsonObject library)
         => MinecraftVersionReader.ReadRequiredString(
             library, "name", "依赖缺少有效的 name。");
+
+    internal static IReadOnlyList<JsonObject> ReadLibraries(
+        MinecraftVersion version,
+        string minecraftRoot,
+        JavaInfo java,
+        IReadOnlyDictionary<string, bool>? features = null)
+    {
+        ArgumentNullException.ThrowIfNull(java);
+
+        return ReadLibrariesForArchitecture(
+            version,
+            minecraftRoot,
+            java.Architecture,
+            features);
+    }
 }

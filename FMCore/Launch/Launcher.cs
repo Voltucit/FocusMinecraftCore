@@ -1,7 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Text;
 using FMCore.Versions;
-
+using FMCore.Accounts;
 namespace FMCore.Launch;
 
 public static class Launcher
@@ -72,6 +72,21 @@ private static async Task<int> RunCoreAsync(
         LaunchStage.PreparingGame,
         "正在检查启动文件并准备原生库。"));
 
+    string[] accountJvmArguments = [];
+
+    if (config.Account is YggdrasilAccount externalAccount)
+    {
+        onProgress?.Invoke(new LaunchProgress(
+            LaunchStage.PreparingGame,
+            "正在检查外置验证凭证并读取验证服务配置。"));
+
+        accountJvmArguments =
+            await YggdrasilAuthenticator.GetLaunchArgumentsAsync(
+                externalAccount,
+                config.AuthlibInjectorPath!,
+                cancellationToken).ConfigureAwait(false);
+    }
+
     bool modern = !legacyOnly
         && LibraryResolver.GetValidatedChain(
                 config.Version, minecraftRoot)
@@ -140,6 +155,13 @@ private static async Task<int> RunCoreAsync(
         config.JvmArguments.Count,
         "-Dfile.encoding=UTF-8");
 
+    int accountArgumentIndex = config.JvmArguments.Count + 1;
+
+    foreach (string argument in accountJvmArguments)
+    {
+        startInfo.ArgumentList.Insert(accountArgumentIndex++, argument);
+    }
+
     startInfo.StandardOutputEncoding = Encoding.UTF8;
     startInfo.StandardErrorEncoding = Encoding.UTF8;
 
@@ -155,6 +177,12 @@ private static async Task<int> RunCoreAsync(
 
     cancellationToken.ThrowIfCancellationRequested();
 
+    if (config.Account is MicrosoftAccount account
+        && account.ExpiresAt <= DateTimeOffset.UtcNow)
+    {
+        throw new InvalidOperationException(
+            "Microsoft 登录已过期，请重新登录后启动。");
+    }
     Directory.CreateDirectory(startInfo.WorkingDirectory);
 
     int exitCode = await RunProcessAsync(

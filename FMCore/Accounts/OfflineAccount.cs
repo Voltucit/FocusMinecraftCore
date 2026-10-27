@@ -5,8 +5,16 @@ using System.Text.RegularExpressions;
 namespace FMCore.Accounts;
 
 /// <summary>离线身份，不表示通过 Microsoft 授权或持有游戏。</summary>
-public sealed record OfflineAccount(string Username, Guid Uuid)
+public sealed record OfflineAccount(string Username, Guid Uuid):IMinecraftAccount
 {
+    public string AccessToken => "0";
+
+    public string UserType => "legacy";
+
+    public string ClientId => Guid.Empty.ToString("D");
+
+    public string? Xuid => null;
+
     public static OfflineAccount Create(string username)
     {
         ArgumentNullException.ThrowIfNull(username);

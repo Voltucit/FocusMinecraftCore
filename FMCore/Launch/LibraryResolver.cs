@@ -148,23 +148,32 @@ internal static class LibraryResolver
         ArgumentException.ThrowIfNullOrWhiteSpace(classifier);
         ArgumentNullException.ThrowIfNull(java);
 
+        return ExpandNativeClassifierForArchitecture(
+            classifier,
+            java.Architecture);
+    }
+
+    internal static string ExpandNativeClassifierForArchitecture(
+        string classifier,
+        string? targetArchitecture)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(classifier);
+
         if (!classifier.Contains("${arch}"))
             return classifier;
 
-        string bits;
-
-        if (java.Architecture == "x86")
-            bits = "32";
-        else if (java.Architecture == "x64")
-            bits = "64";
-        else
-            throw new NotSupportedException(
-                "旧式 ${arch} 模板目前只支持 x86 或 x64 Java，请检查所选 Java 的架构。");
+        string bits = targetArchitecture switch
+        {
+            "x86" => "32",
+            "x64" => "64",
+            _ => throw new NotSupportedException(
+                "旧式 ${arch} 模板只支持 x86 或 x64 目标架构。")
+        };
 
         return classifier.Replace("${arch}", bits);
     }
 
-    private static string ResolveLibraryPath(
+    internal static string ResolveLibraryPath(
         string rawPath,
         string minecraftRoot)
     {
@@ -371,10 +380,21 @@ internal static IReadOnlyList<JsonObject> GetWindowsLibraryEntries(
     return result;
 }
 
-// 根据版本元数据确定客户端 JAR 的来源。
+// 启动时要求客户端文件已经存在。
 internal static string GetClientJarPath(
     MinecraftVersion version,
     string minecraftRoot)
+{
+    var source = GetClientJarSource(version, minecraftRoot);
+
+    return RequireClassPathFile(source.FilePath);
+}
+
+// 下载清单需要知道来源和路径，但允许目标文件暂时缺失。
+internal static (MinecraftVersion Owner, string FilePath)
+    GetClientJarSource(
+        MinecraftVersion version,
+        string minecraftRoot)
 {
     IReadOnlyList<MinecraftVersion> chain =
         GetValidatedChain(version, minecraftRoot);
@@ -384,10 +404,9 @@ internal static string GetClientJarPath(
     foreach (MinecraftVersion current in chain)
     {
         JsonObject data =
-            MinecraftVersionReader.ReadVersionJson(current.Directory);
+            MinecraftVersionReader.ReadVersionJson(
+                current.Directory);
 
-        // 显式 jar 字段表示使用这个版本 ID 对应的客户端文件。
-        // 通过版本查询定位目录，不直接把 ID 拼成文件路径。
         if (data.ContainsKey("jar"))
         {
             string jarVersionId =
@@ -397,47 +416,59 @@ internal static string GetClientJarPath(
                     "版本 jar 字段必须是非空字符串。");
 
             MinecraftVersion owner =
-                reader.GetVersion(jarVersionId, minecraftRoot);
+                reader.GetVersion(
+                    jarVersionId,
+                    minecraftRoot);
 
-            return RequireClientJar(owner, minecraftRoot);
+            return (
+                owner,
+                GetClientJarTarget(owner, minecraftRoot));
         }
 
         if (data.TryGetPropertyValue(
-                "downloads", out JsonNode? downloadsNode))
+                "downloads",
+                out JsonNode? downloadsNode))
         {
             if (downloadsNode is not JsonObject downloads)
+            {
                 throw new InvalidDataException(
                     $"版本 {current.Id} 的 downloads 必须是对象。");
+            }
 
             if (downloads.ContainsKey("client"))
             {
                 if (downloads["client"] is not JsonObject)
+                {
                     throw new InvalidDataException(
                         $"版本 {current.Id} 的 downloads.client 必须是对象。");
+                }
 
-                return RequireClientJar(current, minecraftRoot);
+                return (
+                    current,
+                    GetClientJarTarget(current, minecraftRoot));
             }
         }
 
-        // 没有继续继承的基础版本，使用自己的客户端 JAR。
-        // 这也允许没有 downloads 元数据的旧式基础版本。
         if (current.InheritsFrom is null)
-            return RequireClientJar(current, minecraftRoot);
+        {
+            return (
+                current,
+                GetClientJarTarget(current, minecraftRoot));
+        }
     }
 
     throw new InvalidDataException(
         $"无法确定版本 {version.Id} 的客户端 JAR。");
 }
 
-private static string RequireClientJar(
+private static string GetClientJarTarget(
     MinecraftVersion owner,
     string minecraftRoot)
 {
     string directory =
         RequireVersionDirectory(owner, minecraftRoot);
 
-    // 项目已经允许版本 ID 与目录名不同。
-    // 文件名按实际版本目录名确定。
+    // 文件名按实际目录名确定，不能直接使用版本 ID。
     string folderName = Path.GetFileName(directory);
     string fileName = folderName + ".jar";
 
@@ -447,12 +478,13 @@ private static string RequireClientJar(
         Path.Combine(directory, fileName));
 
     if (!PathSafety.IsWithin(target, directory))
+    {
         throw new InvalidDataException(
             "客户端 JAR 路径越出了所属版本目录。");
+    }
 
-    return RequireClassPathFile(target);
+    return target;
 }
-
 // 所有加入 classpath 的文件，都经过同一处存在性检查。
 private static string RequireClassPathFile(string path)
 {

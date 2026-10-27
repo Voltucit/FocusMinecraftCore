@@ -111,7 +111,7 @@ internal static class LaunchResourceResolver
     }
 
     // 从当前版本向父版本查找，使用最近一层的完整字段。
-    private static JsonObject? ReadInheritedObject(
+    internal static JsonObject? ReadInheritedObject(
         MinecraftVersion version,
         string minecraftRoot,
         string property)
