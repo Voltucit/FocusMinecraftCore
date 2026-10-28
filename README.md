@@ -1,7 +1,9 @@
 
 <div align="center">
- <img src="https://github.com/Voltucit/FocusMinecraftCore/assets/icon.png" width="200" height="200">
-</div>
+
+<img Height="300" Width="300" src="assets/icon.png"/>
+
+
 # FocusMinecraftCore
 
 [![Stars](https://img.shields.io/github/stars/Voltucit/FocusMinecraftCore?style=flat)](https://github.com/Voltucit/FocusMinecraftCore/stargazers)
