@@ -12,9 +12,7 @@
 [![License](https://img.shields.io/github/license/Voltucit/FocusMinecraftCore?style=flat)](LICENSE)
 ![.NET 10](https://img.shields.io/badge/.NET-10-512BD4?style=flat)
 
-用 C# 开发 Minecraft Java 版启动器时，把安装、下载、登录和启动交给 FMCore。你负责界面和用户选择，FMCore 负责把游戏准备好并运行。
-
-包名是 `FocusMinecraftCore`，代码中使用 `FMCore`。当前 2.0 面向 Windows，需要 .NET 10；2.0 与 1.x 的调用方式不同。
+由.NET10支持的Minecraft核心
 
 ## 功能
 
