@@ -79,7 +79,7 @@ foreach (var image in project.Gallery)
 | 中文标签 | `Tags` |
 | 支持版本、加载器 | `GameVersions`、`Loaders` |
 
-`Followers` 是关注人数，不能当成另一个“收藏量”。图片返回地址，完整介绍返回 Markdown 文本，如何显示和缓存图片由启动器决定。
+图片返回地址，完整介绍返回 Markdown 文本，如何显示和缓存图片由启动器决定。
 
 ## 历史版本和更新日志
 
