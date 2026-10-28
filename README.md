@@ -3,6 +3,7 @@
 
 <img Height="250" Width="250" src="assets/icon.png"/>
 
+</div>
 <hr>
 
 
