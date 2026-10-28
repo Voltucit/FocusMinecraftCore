@@ -63,10 +63,17 @@ jobs:
           if ($LASTEXITCODE -ne 0 -or $headCommit -cne $tagCommit) { throw 'Tag commit mismatch.' }
           git merge-base --is-ancestor HEAD origin/v2.0
           if ($LASTEXITCODE -ne 0) { throw 'Release commit is outside v2.0 history.' }
-          $notes = "docs/releases/v$env:VERSION.md"
-          if (!(Test-Path -LiteralPath $notes)) { throw 'Missing reviewed Chinese release notes.' }
+          if (!(Test-Path -LiteralPath CHANGELOG.md -PathType Leaf)) { throw 'Missing CHANGELOG.md.' }
+          $versionPattern = [regex]::Escape($env:VERSION)
+          $sectionPattern = "(?ms)^##[ \t]+v?$versionPattern(?=[ \t（(·]|\r?$)[^\r\n]*\r?\n(?<body>.*?)(?=^##[ \t]+|\z)"
+          $section = [regex]::Match((Get-Content -LiteralPath CHANGELOG.md -Raw), $sectionPattern)
+          if (!$section.Success -or [string]::IsNullOrWhiteSpace($section.Groups['body'].Value)) {
+            throw "CHANGELOG.md must contain a non-empty '## $env:VERSION' section."
+          }
+          $currentChanges = "# $env:PACKAGE_ID $env:VERSION`n`n" + $section.Groups['body'].Value.Trim() + "`n"
+          $currentChanges | Set-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'fmcore-changelog-current.md') -Encoding utf8NoBOM
           $release = Invoke-WebRequest "https://api.github.com/repos/$env:REPOSITORY/releases/tags/v$env:VERSION" -Headers @{Authorization="Bearer $env:GH_TOKEN"} -SkipHttpErrorCheck -TimeoutSec 30
-          if ($release.StatusCode -ne 404) { throw "Release exists or check failed (HTTP $($release.StatusCode))." }
+          if ($release.StatusCode -notin 200, 404) { throw "Release check failed (HTTP $($release.StatusCode))." }
           $id = $env:PACKAGE_ID.ToLowerInvariant()
           $version = $env:VERSION.ToLowerInvariant()
           $package = Invoke-WebRequest "https://api.nuget.org/v3-flatcontainer/$id/$version/$id.$version.nupkg" -Method Head -SkipHttpErrorCheck -TimeoutSec 30
@@ -74,15 +81,14 @@ jobs:
       - run: dotnet restore FMCore.slnx
       - run: dotnet build FMCore.slnx -c Release --no-restore
       - run: dotnet pack FMCore/FMCore.csproj -c Release --no-build --no-restore -o artifacts/packages
-      - name: 生成同源提交与产物校验清单
+      - name: 生成本版变更与产物校验清单
         shell: pwsh
         env:
           VERSION: ${{ inputs.version }}
         run: |
-          Copy-Item -LiteralPath CHANGELOG.md -Destination artifacts/packages/CHANGELOG.md
-          Copy-Item -LiteralPath "docs/releases/v$env:VERSION.md" -Destination artifacts/packages/RELEASE_NOTES.md
+          Copy-Item -LiteralPath (Join-Path $env:RUNNER_TEMP 'fmcore-changelog-current.md') -Destination artifacts/packages/CHANGELOG.md
           git rev-parse HEAD | Set-Content artifacts/packages/SOURCE_COMMIT.txt -Encoding utf8NoBOM
-          $files = @("$env:PACKAGE_ID.$env:VERSION.nupkg", "$env:PACKAGE_ID.$env:VERSION.snupkg", 'CHANGELOG.md', 'RELEASE_NOTES.md', 'SOURCE_COMMIT.txt')
+          $files = @("$env:PACKAGE_ID.$env:VERSION.nupkg", "$env:PACKAGE_ID.$env:VERSION.snupkg", 'CHANGELOG.md', 'SOURCE_COMMIT.txt')
           $lines = foreach ($name in $files) { $hash = (Get-FileHash -LiteralPath "artifacts/packages/$name" -Algorithm SHA256).Hash.ToLowerInvariant(); "$hash  $name" }
           $lines | Set-Content artifacts/packages/SHA256SUMS.txt -Encoding utf8NoBOM
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7
@@ -101,7 +107,7 @@ jobs:
         with:
           name: FocusMinecraftCore-release-packages
           path: artifacts/packages
-      - name: 校验同一批产物并创建 Release
+      - name: 校验产物并创建或复用 Release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -112,13 +118,23 @@ jobs:
             $parts = $line -split '  ', 2
             if ($parts.Count -ne 2 -or (Get-FileHash -LiteralPath "artifacts/packages/$($parts[1])" -Algorithm SHA256).Hash.ToLowerInvariant() -cne $parts[0]) { throw 'Artifact hash mismatch.' }
           }
-          $releaseArgs = @('release', 'create', "v$env:VERSION", '--verify-tag', '--repo', $env:REPOSITORY,
-            '--title', "FocusMinecraftCore v$env:VERSION", '--notes-file', 'artifacts/packages/RELEASE_NOTES.md',
-            "artifacts/packages/$env:PACKAGE_ID.$env:VERSION.nupkg", "artifacts/packages/$env:PACKAGE_ID.$env:VERSION.snupkg",
-            'artifacts/packages/CHANGELOG.md', 'artifacts/packages/RELEASE_NOTES.md', 'artifacts/packages/SOURCE_COMMIT.txt', 'artifacts/packages/SHA256SUMS.txt')
-          if ($env:VERSION.Contains('-')) { $releaseArgs += '--prerelease' } else { $releaseArgs += '--latest' }
+          $assets = @("artifacts/packages/$env:PACKAGE_ID.$env:VERSION.nupkg", "artifacts/packages/$env:PACKAGE_ID.$env:VERSION.snupkg",
+            'artifacts/packages/CHANGELOG.md', 'artifacts/packages/SOURCE_COMMIT.txt', 'artifacts/packages/SHA256SUMS.txt')
+          $release = Invoke-WebRequest "https://api.github.com/repos/$env:REPOSITORY/releases/tags/v$env:VERSION" -Headers @{Authorization="Bearer $env:GH_TOKEN"} -SkipHttpErrorCheck -TimeoutSec 30
+          if ($release.StatusCode -eq 200) {
+            & gh release edit "v$env:VERSION" --repo $env:REPOSITORY --notes-file artifacts/packages/CHANGELOG.md
+            if ($LASTEXITCODE -ne 0) { throw 'Cannot update the Release body from CHANGELOG.md.' }
+            # 正文统一读取 CHANGELOG；不覆盖已有同名附件。
+            $releaseArgs = @('release', 'upload', "v$env:VERSION", '--repo', $env:REPOSITORY) + $assets
+          } elseif ($release.StatusCode -eq 404) {
+            $releaseArgs = @('release', 'create', "v$env:VERSION", '--verify-tag', '--repo', $env:REPOSITORY,
+              '--title', "FocusMinecraftCore v$env:VERSION", '--notes-file', 'artifacts/packages/CHANGELOG.md') + $assets
+            if ($env:VERSION.Contains('-')) { $releaseArgs += '--prerelease' } else { $releaseArgs += '--latest' }
+          } else {
+            throw "Release check failed (HTTP $($release.StatusCode))."
+          }
           & gh @releaseArgs
-          if ($LASTEXITCODE -ne 0) { throw 'Release failed. NuGet has not run; inspect state before resuming.' }
+          if ($LASTEXITCODE -ne 0) { throw 'Release upload/create failed. NuGet has not run; inspect state before resuming.' }
 
   nuget:
     needs: github-release
