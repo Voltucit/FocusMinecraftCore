@@ -2,7 +2,7 @@
 
 通常先看[文档目录](README.md)中的最短示例。本页保留实际类型、方法和完整参数，方便需要调整细节时查找；代码里的英文名称不能替换成中文。
 
-适用于准备发布的 `2.0.0`，使用 .NET 10 / C# 14，代码名称以 `FMCore` 开头。包名是 `FocusMinecraftCore`。
+适用于准备发布的 `2.0.1`，使用 .NET 10 / C# 14，代码名称以 `FMCore` 开头。包名是 `FocusMinecraftCore`。
 
 | 要查什么 | 位置 |
 | --- | --- |
@@ -243,7 +243,7 @@ public sealed class GameWindowConfig
 
 ### MinecraftLauncher
 
-`CheckAsync()` 检查已有启动设置，`LaunchAsync()` 启动游戏。普通调用不必先执行检查。启动会读取版本、确认 Java、准备参数，并在需要时解压原生库。
+`CheckAsync()` 检查已有启动设置，`LaunchAsync()` 启动游戏。普通调用不必先执行检查。启动会读取版本、确认 Java、准备参数，并在需要时解压原生库。新版参数可搭配旧式原生库压缩包；压缩包使用同一套新版选库规则，解压目录与启动参数一致，默认排除 JAR 的 META-INF 说明文件。
 
 启动方法一直等到游戏退出和最后的日志读完，返回整数退出码。`JavaStarted` 只表示 Java 已运行。接收进度和日志的方法可能在后台执行，界面需自己安排控件更新；它们出错时本次操作也会失败。
 
@@ -422,7 +422,7 @@ public sealed record FabricInstallResult(
 
 原版版本、Forge 版本、根目录和 Java 路径必填。Java 用来运行安装补丁工具；额外内存默认 2048 MB，同时处理数默认 4。可选自定义版本 ID 和下载源。
 
-当前支持使用 `spec=1` 说明的客户端安装包。安装包按官方大小和 SHA-1 检查，生成文件按声明检查；失败或已有不同配置会报错，不回滚整个安装。详情见[Forge 安装](forge-installation.md)。
+当前支持带补丁处理步骤的 `spec=0` 和 `spec=1` 客户端安装包。包内自带的依赖按声明大小和 SHA-1 检查后释放，其他文件仍由补丁工具生成并校验。安装包按官方大小和 SHA-1 检查，生成文件按声明检查；失败或已有不同配置会报错，不回滚整个安装。详情见[Forge 安装](forge-installation.md)。
 
 ```text
 public sealed partial class ForgeInstaller
@@ -637,7 +637,7 @@ public sealed record OptiFineInstallVersion(
 public sealed class ModrinthClient
 
 public ModrinthClient(
-    string userAgent = "FocusMinecraftCore/2.0.0-dev (+https://github.com/Voltucit/FocusMinecraftCore)")
+    string userAgent = "FocusMinecraftCore/2.0.1 (+https://github.com/Voltucit/FocusMinecraftCore)")
 
 public DownloadSource Source { get; init; } = DownloadSource.Official;
 

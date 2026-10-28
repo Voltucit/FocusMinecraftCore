@@ -210,6 +210,19 @@ internal static class LibraryResolver
         if (!IsLibraryAllowed(library, "windows"))
             return null;
 
+        return GetSelectedWindowsNativeLibraryPath(library, minecraftRoot, java);
+    }
+
+    // 调用方已按相应版本的规则选好库，这里只解析分类和安全路径。
+    internal static string? GetSelectedWindowsNativeLibraryPath(
+        JsonObject library,
+        string minecraftRoot,
+        JavaInfo java)
+    {
+        ArgumentNullException.ThrowIfNull(library);
+        ArgumentNullException.ThrowIfNull(java);
+        ArgumentException.ThrowIfNullOrWhiteSpace(minecraftRoot);
+
         string? classifier = ReadNativeClassifier(library, "windows");
 
         if (classifier is null)

@@ -27,7 +27,9 @@ internal static class NativeExtractor
         MinecraftVersion version,
         string minecraftRoot,
         JavaInfo java,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        IReadOnlyList<JsonObject>? selectedLibraries = null,
+        string? outputDirectory = null)
     {
         ArgumentNullException.ThrowIfNull(version);
         ArgumentNullException.ThrowIfNull(java);
@@ -45,6 +47,18 @@ internal static class NativeExtractor
         if (!Directory.Exists(versionDirectory))
             throw new DirectoryNotFoundException(
                 $"版本目录不存在：{versionDirectory}");
+
+        if (outputDirectory is not null)
+        {
+            outputDirectory = PathSafety.RequireDirectoryPath(outputDirectory);
+            if (!PathSafety.IsWithin(outputDirectory, versionDirectory)
+                || PathSafety.Comparer.Equals(outputDirectory, versionDirectory))
+                throw new InvalidDataException("原生库输出目录必须位于当前版本目录内部。");
+
+            CheckNoLinks(outputDirectory);
+            if (Path.Exists(outputDirectory))
+                throw new IOException($"输出路径已存在：{outputDirectory}");
+        }
 
         List<ZipArchive> archives = [];
         List<PlannedFile> plan = [];
@@ -69,12 +83,13 @@ internal static class NativeExtractor
         {
             // 第一部分：只读取和检查，不创建输出目录。
             foreach (JsonObject library
-                     in LibraryResolver.GetWindowsLibraryEntries(version, minecraftRoot))
+                     in selectedLibraries
+                        ?? LibraryResolver.GetWindowsLibraryEntries(version, minecraftRoot))
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
                 string? archivePath =
-                    LibraryResolver.GetWindowsNativeLibraryPath(
+                    LibraryResolver.GetSelectedWindowsNativeLibraryPath(
                         library, minecraftRoot, java);
 
                 if (archivePath is null)
@@ -165,7 +180,7 @@ internal static class NativeExtractor
                 return null;
 
             // 第二部分：全部预检通过后，才创建本次专用目录。
-            string outputDirectory = Path.Combine(
+            outputDirectory ??= Path.Combine(
                 versionDirectory, $"natives-{Guid.NewGuid():N}");
 
             CreateDirectory(outputDirectory, createdDirectories);
@@ -264,7 +279,8 @@ internal static class NativeExtractor
 
     private static HashSet<string> ReadExcludes(JsonObject library)
     {
-        HashSet<string> result = new(StringComparer.Ordinal);
+        // 原生库 JAR 常带有同名签名和模块说明，不属于需要解压的系统库。
+        HashSet<string> result = new(StringComparer.Ordinal) { "META-INF/" };
 
         if (!library.TryGetPropertyValue("extract", out JsonNode? node))
             return result;

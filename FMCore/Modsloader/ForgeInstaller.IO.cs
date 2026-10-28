@@ -1,4 +1,5 @@
-﻿using System.Security.Cryptography;
+﻿using System.IO.Compression;
+using System.Security.Cryptography;
 using System.Text.Json.Nodes;
 using FMCore.Installer;
 using FMCore.Versions;
@@ -8,6 +9,39 @@ namespace FMCore.Modsloader;
 public sealed partial class ForgeInstaller
 {
     private sealed record ExpectedFile(string Path, string Sha1, long? Size = null);
+
+    // 旧版包将启动库和 universal 放在包内；空 URL 不一定表示由补丁工具生成。
+    private async Task RestoreEmbeddedLibrariesAsync(
+        ZipArchive archive,
+        IReadOnlyList<ExpectedFile> files,
+        CancellationToken cancellationToken)
+    {
+        string libraries = PathSafety.RequireDirectoryPath(Path.Combine(_root, "libraries"));
+        foreach (ExpectedFile file in files)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (File.Exists(file.Path))
+            {
+                await RequireFileAsync(file, cancellationToken).ConfigureAwait(false);
+                continue;
+            }
+
+            string relative = Path.GetRelativePath(libraries, file.Path).Replace('\\', '/');
+            PathSafety.ValidateWindowsRelativePath(relative);
+            string entryName = "maven/" + relative;
+            if (archive.GetEntry(entryName) is null)
+                continue; // 不在包内的文件仍交给补丁工具生成，并在之后校验。
+
+            byte[] bytes = await ReadEntryAsync(
+                archive, entryName, 64 * 1024 * 1024, cancellationToken).ConfigureAwait(false);
+            if ((file.Size is long size && bytes.LongLength != size)
+                || !Convert.ToHexString(SHA1.HashData(bytes)).Equals(
+                    file.Sha1, StringComparison.OrdinalIgnoreCase))
+                throw new InvalidDataException($"Forge 包内依赖校验失败：{entryName}");
+
+            await WriteNewFileAsync(file.Path, bytes, cancellationToken).ConfigureAwait(false);
+        }
+    }
 
     private static async Task<bool> MatchesAsync(
         ExpectedFile file,

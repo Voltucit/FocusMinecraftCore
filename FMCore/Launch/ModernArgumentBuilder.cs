@@ -46,9 +46,15 @@ internal static class ModernArgumentBuilder
             config.Java,
             features);
 
-        if (libraries.Any(item => item.ContainsKey("natives")))
-            throw new NotSupportedException(
-                "该版本仍使用旧式 natives 映射，稍后单独接入。");
+        // 新版参数也可能搭配旧式分类压缩包。先检查文件，启动时再安全解压。
+        foreach (var library in libraries)
+        {
+            string? archive = LibraryResolver.GetSelectedWindowsNativeLibraryPath(
+                library, minecraftRoot, config.Java);
+            if (archive is not null && !File.Exists(archive))
+                throw new FileNotFoundException(
+                    "缺少原生库文件，请先补全游戏文件。", archive);
+        }
 
         string classPath =
             ModernLibraryResolver.GetClassPath(

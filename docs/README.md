@@ -30,6 +30,6 @@
 - [接口参考](public-api.md)：完整参数、返回内容和错误类型。
 - [项目分工](architecture.md)：核心负责什么，启动器负责什么。
 - [后续计划](roadmap.md)、[变更记录](../CHANGELOG.md)。
-- [本地打包](packaging.md)、[发布准备](release-preparation.md)、[2.0.0 发布说明草稿](releases/v2.0.0.md)。
+- [本地打包](packaging.md)、[发布准备](release-preparation.md)、[2.0.1 发布说明草稿](releases/v2.0.1.md)。
 
 [Python 迁移记录](migration-to-csharp.md)和 [stages](stages/stage-02.md) 是开发历史，不作为当前接入步骤。

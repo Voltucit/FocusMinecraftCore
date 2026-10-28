@@ -112,7 +112,25 @@ private static async Task<int> RunCoreAsync(
             minecraftRoot,
             nativesDirectory);
 
+        var libraries = ModernLibraryResolver.ReadLibraries(
+            config.Version,
+            minecraftRoot,
+            config.Java,
+            new Dictionary<string, bool>(StringComparer.Ordinal)
+            {
+                ["has_custom_resolution"] = config.WindowWidth.HasValue
+            });
+
+        await NativeExtractor.ExtractWindowsAsync(
+            config.Version,
+            minecraftRoot,
+            config.Java,
+            cancellationToken,
+            selectedLibraries: libraries,
+            outputDirectory: nativesDirectory).ConfigureAwait(false);
+
         cancellationToken.ThrowIfCancellationRequested();
+        // 无旧式压缩包时，保留新版库使用的空工作目录。
         Directory.CreateDirectory(nativesDirectory);
     }
     else

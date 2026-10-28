@@ -159,10 +159,15 @@ public sealed partial class ForgeInstaller
         JsonObject install = await ReadJsonEntryAsync(
             archive, "install_profile.json", cancellationToken).ConfigureAwait(false);
 
-        if (install["spec"]?.GetValue<int>() != 1
-            || ReadText(install, "minecraft") != _gameVersion)
+        int? spec = install["spec"]?.GetValue<int>();
+        bool supported = spec == 1
+            || (!_isNeoForge && spec == 0
+                && install["processors"] is JsonArray
+                && install["data"] is JsonObject);
+        if (!supported || ReadText(install, "minecraft") != _gameVersion)
         {
-            throw new NotSupportedException("当前入口只支持匹配游戏版本的 Forge spec=1 安装包。");
+            throw new NotSupportedException(
+                "当前入口支持匹配游戏版本、带补丁处理步骤的 Forge spec=0 或 spec=1 安装包。");
         }
 
         ValidatePackageIdentity(install);
@@ -230,6 +235,8 @@ public sealed partial class ForgeInstaller
 
         string clientJar = LibraryResolver.GetClientJarSource(parent, _root).FilePath;
         var plan = ReadLibraryPlan(install, profile, source);
+        await RestoreEmbeddedLibrariesAsync(
+            archive, plan.Generated, cancellationToken).ConfigureAwait(false);
 
         Report(ForgeInstallStage.DownloadingLibraries, "下载并校验 Forge 和处理器依赖……");
 

@@ -60,3 +60,7 @@ WPF 的按钮处理写法见[游戏启动](../docs/launch.md#接到启动按钮)
 ## 只想检查时
 
 “检查文件”按钮调用 `GameFileChecker.CheckAsync()`；“检查设置”按钮调用 `MinecraftLauncher.CheckAsync()`。两者按需提供，不要求普通启动前都执行，见[检查说明](../docs/diagnostics.md)。
+
+## 新版参数配旧式原生库的游戏
+
+1.16.5 这类游戏仍使用相同的 `MinecraftLauncher(config).LaunchAsync()` 调用，不需要启动器作者手动解压。所选 Java 仍需适用于该游戏和 Mod。已经用 Java 8 启动新装的 1.16.5＋Forge 36.2.34＋OptiFine G8，确认进入主菜单。OptiFine 在这个组合中作为模组放在实例的 `mods` 目录，文件放入由启动器安排。

@@ -1,6 +1,6 @@
 # 生成和使用本地包
 
-包名是 `FocusMinecraftCore`，代码中使用 `FMCore`，目标为 .NET 10。当前准备版本为 `2.0.0`，分支为 `v2.0`。
+包名是 `FocusMinecraftCore`，代码中使用 `FMCore`，目标为 .NET 10。当前准备版本为 `2.0.1`，分支为 `v2.0`。
 
 ## 生成包
 
@@ -14,14 +14,14 @@ dotnet pack ./FMCore/FMCore.csproj -c Release -o ./artifacts/packages
 
 | 文件 | 用途 |
 | --- | --- |
-| `FocusMinecraftCore.2.0.0.nupkg` | 给启动器引用的核心包 |
-| `FocusMinecraftCore.2.0.0.snupkg` | 调试时定位问题用的信息包 |
+| `FocusMinecraftCore.2.0.1.nupkg` | 给启动器引用的核心包 |
+| `FocusMinecraftCore.2.0.1.snupkg` | 调试时定位问题用的信息包 |
 
-这条命令只生成本地文件，不上传。此前检查通过的是 `2.0.0-dev` 包，新的 `2.0.0` 包仍需要实际生成并确认。
+这条命令只生成本地文件，不上传。此前检查通过的是 `2.0.0-dev` 包，新的 `2.0.1` 包仍需要实际生成并确认。
 
 ## 在自己的项目中使用
 
-最直接的开发方式是[引用源码项目](../README.md#安装指南)。使用本地包时，在 Rider 或 Visual Studio 的 NuGet 设置中，把本仓库的 `artifacts/packages` 文件夹添加为一个包来源，再选择 `FocusMinecraftCore` 的 `2.0.0`。
+最直接的开发方式是[引用源码项目](../README.md#安装指南)。使用本地包时，在 Rider 或 Visual Studio 的 NuGet 设置中，把本仓库的 `artifacts/packages` 文件夹添加为一个包来源，再选择 `FocusMinecraftCore` 的 `2.0.1`。
 
 保留 `nuget.org` 来源：核心依赖的 `Microsoft.Identity.Client` 仍需从那里获取，不用手动复制它的 DLL。
 

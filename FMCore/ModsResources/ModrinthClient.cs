@@ -25,7 +25,7 @@ public sealed class ModrinthClient
     public DownloadSource Source { get; init; } = DownloadSource.Official;
 
     public ModrinthClient(
-        string userAgent = "FocusMinecraftCore/2.0.0-dev (+https://github.com/Voltucit/FocusMinecraftCore)")
+        string userAgent = "FocusMinecraftCore/2.0.1 (+https://github.com/Voltucit/FocusMinecraftCore)")
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(userAgent);
         using HttpRequestMessage probe = new();

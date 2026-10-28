@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 已创建 Tag 对应的版本号，例如 2.0.0
+        description: 已创建 Tag 对应的版本号，例如 2.0.1
         type: string
-        default: 2.0.0
+        default: 2.0.1
         required: true
       confirmation:
         description: 输入 publish FocusMinecraftCore 加空格和版本号，确认公开发布

@@ -20,7 +20,7 @@
 
 包名是 `FocusMinecraftCore`，代码中使用 `FMCore`。当前 2.0 面向 Windows，需要 .NET 10；2.0 与 1.x 的调用方式不同。
 
-## 能做什么
+## 功能
 
 - 查询、安装原版游戏，补齐缺失文件，检查并修复下载不完整的文件。
 - 启动已有游戏，接收进度、游戏日志和退出结果。
@@ -31,7 +31,7 @@
 
 ## 安装指南
 
-先安装 [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)。目前 2.0.0 正在准备发布；使用仓库中的 2.0 代码，可以直接引用项目。
+先安装 [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)。目前 2.0.1 正在准备发布；使用仓库中的 2.0 代码，可以直接引用项目。
 
 将本仓库放在你的启动器项目旁边，在启动器项目目录执行：
 
@@ -43,7 +43,7 @@ dotnet reference add ../FocusMinecraftCore/FMCore/FMCore.csproj
 你的项目需要使用 `net10.0` 或兼容的 Windows 目标。已有本地包的用法见[打包说明](docs/packaging.md)。正式包发布后，再使用下面的 NuGet 命令：
 
 ```powershell
-dotnet package add FocusMinecraftCore --version 2.0.0
+dotnet package add FocusMinecraftCore --version 2.0.1
 ```
 
 ## 使用示例
@@ -121,11 +121,7 @@ int exitCode = await launcher.LaunchAsync();
 | 接入自己的启动器 | [示例目录](examples/README.md)、[进度、取消与错误处理](docs/advanced.md) |
 | 查具体参数 | [接口参考](docs/public-api.md) |
 
-## 当前范围
 
-已在 Windows x64 上运行过原版 1.8.9、1.21.10 和所选加载器版本；这不代表所有游戏版本都已测试。1.16.5 这类使用新版启动参数、旧版原生库说明的组合暂不支持。其他限制见[启动说明](docs/launch.md#使用范围)。
-
-CurseForge 暂未接入。模组的安装管理、整个整合包系统、账号保存与加密由启动器作者实现。Microsoft 登录需要作者自己的 Client ID。FMCore 只在指定位置创建功能需要的文件。
 
 ## 贡献指南
 
