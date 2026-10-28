@@ -3,8 +3,11 @@
 
 <img Height="250" Width="250" src="assets/icon.png"/>
 
+<hr>
 
-# FocusMinecraftCore
+
+#FocusMinecraftCore
+
 
 [![Stars](https://img.shields.io/github/stars/Voltucit/FocusMinecraftCore?style=flat)](https://github.com/Voltucit/FocusMinecraftCore/stargazers)
 [![Forks](https://img.shields.io/github/forks/Voltucit/FocusMinecraftCore?style=flat)](https://github.com/Voltucit/FocusMinecraftCore/forks)
