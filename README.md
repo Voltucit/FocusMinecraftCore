@@ -1,7 +1,7 @@
 
 <div align="center">
 
-<img Height="300" Width="300" src="assets/icon.png"/>
+<img Height="250" Width="250" src="assets/icon.png"/>
 
 
 # FocusMinecraftCore
