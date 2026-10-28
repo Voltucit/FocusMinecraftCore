@@ -16,7 +16,7 @@
 
 包名是 `FocusMinecraftCore`，代码中使用 `FMCore`。当前 2.0 面向 Windows，需要 .NET 10；2.0 与 1.x 的调用方式不同。
 
-## 能做什么
+##能做什么
 
 - 查询、安装原版游戏，补齐缺失文件，检查并修复下载不完整的文件。
 - 启动已有游戏，接收进度、游戏日志和退出结果。
@@ -25,7 +25,7 @@
 - 在 Modrinth 搜索模组、资源包、数据包、光影和整合包，获取详情、中文分类与下载文件。
 - 选择官方、BMCLAPI 或开发者自己的下载源。
 
-## 安装指南
+##安装指南
 
 先安装 [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)。目前 2.0.0 正在准备发布；使用仓库中的 2.0 代码，可以直接引用项目。
 
@@ -42,9 +42,9 @@ dotnet reference add ../FocusMinecraftCore/FMCore/FMCore.csproj
 dotnet package add FocusMinecraftCore --version 2.0.0
 ```
 
-## 使用示例
+##使用示例
 
-### 安装原版
+###安装原版
 
 只需要版本号和保存目录，不需要 Java 路径：
 
@@ -57,7 +57,7 @@ var result = await installer.InstallAsync();
 
 游戏会保存到 `.minecraft/versions/1.21.10`，共用文件放在 `.minecraft/assets` 和 `.minecraft/libraries`。
 
-### 启动游戏
+###启动游戏
 
 填好账号、游戏目录和 Java，再调用 `LaunchAsync()`：
 
@@ -89,7 +89,7 @@ int exitCode = await launcher.LaunchAsync(
     progress => Console.WriteLine(progress.Message));
 ```
 
-### 补全文件后再启动
+###补全文件后再启动
 
 已有上面的 `config` 和 `launcher` 时：
 
@@ -103,7 +103,7 @@ int exitCode = await launcher.LaunchAsync();
 
 这段还需要 `using FMCore.Installer;`。正确文件会直接使用，缺失文件会下载，坏文件修复前会保留备份。补全失败或取消时，游戏不会接着启动。
 
-## 文档
+##文档
 
 从[文档目录](docs/README.md)选择你要做的事：
 
@@ -117,13 +117,13 @@ int exitCode = await launcher.LaunchAsync();
 | 接入自己的启动器 | [示例目录](examples/README.md)、[进度、取消与错误处理](docs/advanced.md) |
 | 查具体参数 | [接口参考](docs/public-api.md) |
 
-## 当前范围
+##当前范围
 
 已在 Windows x64 上运行过原版 1.8.9、1.21.10 和所选加载器版本；这不代表所有游戏版本都已测试。1.16.5 这类使用新版启动参数、旧版原生库说明的组合暂不支持。其他限制见[启动说明](docs/launch.md#使用范围)。
 
 CurseForge 暂未接入。模组的安装管理、整个整合包系统、账号保存与加密由启动器作者实现。Microsoft 登录需要作者自己的 Client ID。FMCore 只在指定位置创建功能需要的文件。
 
-## 贡献指南
+##贡献指南
 
 欢迎通过 [Issue](https://github.com/Voltucit/FocusMinecraftCore/issues)反馈问题，或通过 [Pull Request](https://github.com/Voltucit/FocusMinecraftCore/pulls)提交改进。
 
@@ -133,6 +133,6 @@ CurseForge 暂未接入。模组的安装管理、整个整合包系统、账号
 
 在仓库根目录可用 `dotnet build FMCore.slnx -c Release` 检查核心能否生成。不要提交游戏数据、账号文件或本地调试目录。
 
-## 许可证
+##许可证
 
 本项目使用 [MIT 许可证](LICENSE)。使用第三方下载服务和资源时，也请遵守对应服务的规则及资源作者的许可证。
