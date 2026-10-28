@@ -1,3 +1,5 @@
+![Description](assets/icon.png)
+
 # FocusMinecraftCore
 
 [![Stars](https://img.shields.io/github/stars/Voltucit/FocusMinecraftCore?style=flat)](https://github.com/Voltucit/FocusMinecraftCore/stargazers)
