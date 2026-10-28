@@ -1,10 +1,10 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 
 namespace FMCore.Downloads;
 
 public static partial class FileDownloader
 {
-    private sealed class TransferMeter
+    internal sealed class TransferMeter
     {
         private const double WindowSeconds = 5;
 
@@ -68,3 +68,4 @@ public static partial class FileDownloader
         }
     }
 }
+

@@ -1,34 +1,40 @@
-# 独立 C# 调用示例
+# 使用示例
 
-各目录是独立控制台项目，只引用 FMCore 核心类库。环境为 .NET 10、C# 14、Windows 10/11。真实启动的最简调用采用 `LaunchConfig → MinecraftLauncher → LaunchAsync`，完整控制台入口见 [启动手册](../docs/launch.md#完整控制台示例)。
+先看最短调用，再按需要加进度或取消。下面的 Markdown 示例可放入已经引用 FMCore 的项目；标明的变量来自启动器界面或已有设置。
 
-## 已有项目
+| 想做什么 | 示例 |
+| --- | --- |
+| 安装后启动、补全后启动、接到按钮 | [组合使用](launcher-workflow.md) |
+| 检查文件 | [文件检查](file-check.md) |
+| 检查启动设置 | [启动检查](launch-check.md) |
+| 安装 Fabric | [Fabric](fabric-installation.md) |
+| 安装 Forge | [Forge](forge-installation.md) |
+| 安装 NeoForge | [NeoForge](neoforge-installation.md) |
+| 安装 OptiFine | [OptiFine](optifine-installation.md) |
+| 外置账号启动 | [外置验证](yggdrasil-launch.md) |
+| 搜索和下载社区资源 | [Modrinth](modrinth-resources.md) |
 
-| 项目 | 功能 | 参数 |
-| --- | --- | --- |
-| ListVersions | 查询版本列表 | [Minecraft根目录] |
-| GetVersion | 查询一个版本 | 版本ID [Minecraft根目录] |
-| InheritanceChain | 读取继承链 | 版本ID [Minecraft根目录] |
-| ResolveMainClass | 解析最终入口 | 版本ID [Minecraft根目录] |
-| ReadJavaInfo | 探测指定 Java | Java完整路径 |
-| ListJavas | 查询候选 Java | [额外目录...] |
-| CreateOfflineAccount | 离线身份 | 用户名 |
-| ShowLaunchConfig | 打印分组启动配置 | 版本ID Java路径 用户名 内存MB [根目录] [工作目录] |
+## 已有的独立小项目
 
-ShowLaunchConfig 使用分组 LaunchConfig 打印配置，不运行游戏。它不代替真实启动验收。原版安装与在线版本列表的完整调用见 [安装手册](../docs/installation.md)。
+这几个项目适合查看一个功能的完整控制台代码，不需要另外建测试工程：
 
-## 使用与核对
+| 项目 | 用途 |
+| --- | --- |
+| [ListVersions](ListVersions/Program.cs) | 列出本地版本 |
+| [GetVersion](GetVersion/Program.cs) | 查询指定版本 |
+| [InheritanceChain](InheritanceChain/Program.cs) | 查看父版本 |
+| [ResolveMainClass](ResolveMainClass/Program.cs) | 读取游戏入口 |
+| [ReadJavaInfo](ReadJavaInfo/Program.cs) | 查看指定 Java |
+| [ListJavas](ListJavas/Program.cs) | 查找可用 Java |
+| [CreateOfflineAccount](CreateOfflineAccount/Program.cs) | 创建离线身份 |
+| [ShowLaunchConfig](ShowLaunchConfig/Program.cs) | 展示已填写的启动设置 |
 
-路径、版本、账号和内存由调用方提供；带空格的路径加引号。从仓库根目录可运行离线身份示例：
+例如在仓库根目录运行：
 
 ```powershell
-dotnet run --project ./examples/CreateOfflineAccount -- Steve
+dotnet run --project examples/ListVersions -- ".minecraft"
 ```
 
-开发者需要构建示例时使用：
+各项目的参数要求见它自己的 `Program.cs`。`ShowLaunchConfig` 只展示设置，不会启动游戏。生成全部小项目可运行 `dotnet build examples/Examples.slnx -c Release`。
 
-```powershell
-dotnet build ./examples/Examples.slnx -c Release
-```
-
-这不是每轮功能验收的固定要求；本轮验收继续通过现有 CLI。异步、取消和错误语义见 [高级说明](../docs/advanced.md)，实际类型签名见 [公开 API](../docs/public-api.md)。
+[文档目录](../docs/README.md) · [进度与取消](../docs/advanced.md) · [接口参考](../docs/public-api.md)

@@ -5,7 +5,7 @@ using FMCore.Versions;
 
 namespace FMCore.Installer;
 
-// Request 为 null，表示缺少生成下载请求所需的信息。
+// Request 为 null 时，可能是本地生成文件，也可能是下载声明尚不完整。
 internal sealed record GameDownloadFile(
     string Name,
     string FilePath,
@@ -19,6 +19,12 @@ internal sealed record GameDownloadFile(
     internal long? DeclaredSize { get; init; }
 
     internal bool IsLegacyNativeArchive { get; init; }
+
+    internal bool IsLocallyGenerated { get; init; }
+
+    internal bool IsMetadataReady =>
+        MissingFields.Count == 0
+        && (Request is not null || IsLocallyGenerated);
 }
 internal static partial class GameFileDownloadPlanner
 {
@@ -141,7 +147,8 @@ internal static partial class GameFileDownloadPlanner
                     name,
                     path,
                     declaration,
-                    repositoryUrl));
+                    repositoryUrl,
+                    allowLocalGenerated: !repositoryUrl));
             }
 
             GameDownloadFile? native =
@@ -201,29 +208,33 @@ internal static partial class GameFileDownloadPlanner
                 $"版本 {owner.Id} 的 downloads.client 必须是对象。");
     }
 
-    private static GameDownloadFile CreateFile(
+     private static GameDownloadFile CreateFile(
         string name,
         string path,
         JsonObject declaration,
-        bool repositoryUrl)
+        bool repositoryUrl,
+        bool allowLocalGenerated = false)
     {
         if (path.Contains(';'))
-        {
             throw new NotSupportedException(
                 $"classpath 文件路径不能包含分号：{path}");
-        }
 
         List<string> missing = [];
 
-        string? url =
-            ReadText(declaration, "url", missing);
+        bool isLocallyGenerated = allowLocalGenerated
+            && !repositoryUrl
+            && declaration["url"] is JsonValue urlValue
+            && urlValue.TryGetValue<string>(out string? declaredUrl)
+            && declaredUrl == "";
 
-        string? sha1 =
-            ReadText(declaration, "sha1", missing);
+        string? url = isLocallyGenerated
+            ? null
+            : ReadText(declaration, "url", missing);
+
+        string? sha1 = ReadText(declaration, "sha1", missing);
 
         if (sha1 is not null
-            && (sha1.Length != 40
-                || !sha1.All(Uri.IsHexDigit)))
+            && (sha1.Length != 40 || !sha1.All(Uri.IsHexDigit)))
         {
             throw new InvalidDataException(
                 $"文件 {name} 的 SHA-1 必须为 40 位十六进制字符串。");
@@ -236,24 +247,18 @@ internal static partial class GameFileDownloadPlanner
             missing.Add("size");
         }
         else if (declaration["size"] is not JsonValue sizeValue
-                 || !sizeValue.TryGetValue<long>(out size)
-                 || size < 0)
+                 || !sizeValue.TryGetValue<long>(out size) || size < 0)
         {
             throw new InvalidDataException(
                 $"文件 {name} 的 size 必须是非负整数。");
         }
 
         if (url is not null)
-        {
-            url = ResolveUrl(
-                url,
-                name,
-                repositoryUrl);
-        }
+            url = ResolveUrl(url, name, repositoryUrl);
 
         DownloadRequest? request = null;
 
-        if (missing.Count == 0)
+        if (missing.Count == 0 && !isLocallyGenerated)
         {
             request = FileDownloader.NormalizeRequest(
                 new DownloadRequest
@@ -273,7 +278,8 @@ internal static partial class GameFileDownloadPlanner
         {
             MavenUrl = repositoryUrl ? url : null,
             DeclaredSha1 = sha1,
-            DeclaredSize = missing.Contains("size") ? null : size
+            DeclaredSize = missing.Contains("size") ? null : size,
+            IsLocallyGenerated = isLocallyGenerated
         };
     }
 

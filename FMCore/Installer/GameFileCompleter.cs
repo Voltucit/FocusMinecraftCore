@@ -1,9 +1,9 @@
-﻿using FMCore.Downloads;
+using FMCore.Downloads;
 using System.Runtime.InteropServices;
 
 namespace FMCore.Installer;
 
-public sealed class GameFileCompleter
+public sealed partial class GameFileCompleter
 {
     private readonly string _versionId;
     private readonly string _minecraftRoot;
@@ -57,12 +57,7 @@ public sealed class GameFileCompleter
         Action<GameFileCompletionProgress>? onProgress = null,
         CancellationToken cancellationToken = default)
     {
-        if (!Enum.IsDefined(Source))
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(Source),
-                "不支持这个下载源。");
-        }
+        ArgumentNullException.ThrowIfNull(Source);
         cancellationToken.ThrowIfCancellationRequested();
 
         if (Interlocked.CompareExchange(
@@ -120,7 +115,7 @@ public sealed class GameFileCompleter
                 cancellationToken).ConfigureAwait(false);
 
         GameDownloadFile[] incomplete =
-            files.Where(file => file.Request is null)
+            files.Where(file => !file.IsMetadataReady)
                 .ToArray();
 
         // 所有下载声明先准备齐全，再开始写入文件。
@@ -138,10 +133,28 @@ public sealed class GameFileCompleter
                 details);
         }
 
-        DownloadRequest[] requests =
-            files.Select(
-                    file => ApplyPolicy(file.Request!))
-                .ToArray();
+        GameDownloadFile[] generatedFiles = files
+            .Where(file => file.IsLocallyGenerated)
+            .ToArray();
+
+        if (generatedFiles.Length != 0)
+        {
+            Report(
+                GameFileCompletionStage.VerifyingGeneratedFiles,
+                $"校验 {generatedFiles.Length} 个本地生成文件……");
+
+            await VerifyGeneratedFilesAsync(
+                generatedFiles,
+                message => Report(
+                    GameFileCompletionStage.VerifyingGeneratedFiles,
+                    message),
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        DownloadRequest[] requests = files
+            .Where(file => file.Request is not null)
+            .Select(file => ApplyPolicy(file.Request!))
+            .ToArray();
 
         Report(
             GameFileCompletionStage.CompletingClientAndLibraries,
@@ -187,6 +200,7 @@ public sealed class GameFileCompleter
 
         int reusedFiles =
             binaryResults.Count(item => item.AlreadyPresent)
+            + generatedFiles.Length
             + resources.ReusedFiles;
 
         GameFileBackup[] backups =
@@ -211,9 +225,9 @@ public sealed class GameFileCompleter
             DownloadedFiles: downloadedFiles,
             ReusedFiles: reusedFiles)
         {
-            Backups = Array.AsReadOnly(backups)
+            Backups = Array.AsReadOnly(backups),
+            VerifiedGeneratedFiles = generatedFiles.Length
         };
-
         Report(
             GameFileCompletionStage.Completed,
             $"游戏文件校验完成，共 {result.TotalFiles} 个文件。");
@@ -232,3 +246,4 @@ public sealed class GameFileCompleter
             _replaceInvalidFiles);
     }
 }
+

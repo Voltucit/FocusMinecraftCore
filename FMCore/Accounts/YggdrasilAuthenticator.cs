@@ -145,6 +145,59 @@ public sealed class YggdrasilAuthenticator
             ApiRoot, loginName, profile, accessToken, clientToken);
     }
 
+    public async Task<YggdrasilAccount> RestoreAsync(
+        string loginName,
+        Guid profileUuid,
+        string accessToken,
+        string clientToken,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(loginName);
+        ArgumentException.ThrowIfNullOrWhiteSpace(accessToken);
+        ArgumentException.ThrowIfNullOrWhiteSpace(clientToken);
+
+        if (profileUuid == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "恢复账号时必须提供有效的角色 UUID。",
+                nameof(profileUuid));
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        JsonObject response = ReadObject(await SendAsync(
+            "authserver/refresh",
+            new
+            {
+                accessToken,
+                clientToken,
+                requestUser = true
+            },
+            "外置账号授权恢复",
+            cancellationToken).ConfigureAwait(false));
+
+        string updatedAccessToken =
+            ReadAccessToken(response, clientToken);
+
+        YggdrasilProfile profile =
+            ReadProfile(response["selectedProfile"]);
+
+        if (profile.Uuid != profileUuid)
+        {
+            throw new InvalidDataException(
+                "恢复后的角色 UUID 与保存的账号不一致，请重新登录。");
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return new YggdrasilAccount(
+            ApiRoot,
+            loginName.Trim(),
+            profile,
+            updatedAccessToken,
+            clientToken);
+    }
+
     internal static async Task<string[]> GetLaunchArgumentsAsync(
         YggdrasilAccount account,
         string agentPath,

@@ -1,41 +1,42 @@
-# 本地版本查询与继承
+# 查询本地游戏
 
-本模块只读解析本机已有目录，不下载安装游戏。命名空间为 FMCore.Versions。
+使用 `FMCore.Versions` 读取已经安装的版本。查询不会下载文件或创建目录。
 
-## 列出版本
+## 列出一个目录中的游戏
 
 ```csharp
 using FMCore.Versions;
 
-MinecraftVersionReader reader = new();
-foreach (MinecraftVersion version in reader.GetVersions())
+var reader = new MinecraftVersionReader();
+var versions = reader.GetVersions(".minecraft");
+foreach (var version in versions)
     Console.WriteLine($"{version.Id}：{version.Directory}");
 ```
 
-默认汇总当前工作目录和 `%APPDATA%` 下的 `.minecraft`，不是扫描启动器安装目录或所有磁盘。可向 GetVersions 传入指定 Minecraft 根目录，路径由启动器决定。目录不存在返回空列表，不创建目录；读取错误明确抛出。
+不传目录时，会查看当前工作目录和 `%APPDATA%` 下的 `.minecraft`。它不会扫描所有磁盘。
 
-目录规则为 `根目录/versions/文件夹/文件夹.json`。Id 来自 JSON，可与文件夹名不同。继承或自定义版本只要满足当前字段解析要求，就能查询；这不表示其已通过启动测试。
-
-## 查询一个版本
+## 找到一个版本
 
 ```csharp
-using FMCore.Versions;
-
-if (args.Length != 2)
-    throw new ArgumentException("请提供版本 ID 和 Minecraft 根目录。");
-MinecraftVersion version = new MinecraftVersionReader().GetVersion(args[0], args[1]);
+var version = reader.GetVersion("1.21.10", ".minecraft");
 Console.WriteLine(version.Directory);
 ```
 
-GetVersion 的版本 ID 在前，根目录可选。无匹配抛 KeyNotFoundException；重复 ID 抛 InvalidDataException。不同根目录的同 ID 版本在列表中分别保留，单版本查询应显式指定根目录。
+版本号在前，根目录在后。找不到会报错；同一个 ID 对应多个目录时，也会报错，避免启动错游戏。
 
-## 独立示例
+目录应当是 `根目录/versions/文件夹/文件夹.json`。`Id` 取自 JSON，可以与文件夹名称不同。
 
-- [版本列表](../examples/ListVersions/Program.cs)：可省略根目录。
-- [单版本查询](../examples/GetVersion/Program.cs)：按 JSON ID 查询。
-- [继承链](../examples/InheritanceChain/Program.cs)：从子版本到父版本。
-- [最终启动入口](../examples/ResolveMainClass/Program.cs)：子版本优先，缺失时继承父版本。
+## 查询父版本
 
-继承解析只使用调用方传入的版本集合，并限定同一根目录。缺少父版本、重名和循环均明确报错，不跨目录借用另一个安装。当前只解析 mainClass 继承，不合并完整 JSON。
+Fabric 等版本可能借用原版的文件。已有上面的 `reader`、`version` 和同一根目录的 `versions` 时：
 
-异步查询和取消见[高级指南](advanced.md)，参数与异常详见[公开 API 清单](public-api.md)。
+```csharp
+var chain = reader.GetInheritanceChain(version, versions);
+string mainClass = reader.ResolveMainClass(version, versions);
+```
+
+`chain` 从所选版本排到父版本；`mainClass` 是最终要运行的游戏入口名称。父版本只在同一个根目录里查找。缺父版本、名字重复或父子关系形成循环时会报错。
+
+界面中可改用 `GetVersionsAsync()` 和 `GetVersionAsync()`，参数顺序相同。启动游戏时无需手动执行这些准备步骤，直接使用 [MinecraftLauncher](launch.md)。
+
+[可运行示例](../examples/README.md) · [完整接口](public-api.md#fmcoreversions)

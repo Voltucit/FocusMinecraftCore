@@ -6,6 +6,7 @@ public enum GameFileCompletionStage
 {
     SelectingArchitecture,
     ReadingMetadata,
+    VerifyingGeneratedFiles,
     CompletingClientAndLibraries,
     CompletingResources,
     Completed
@@ -28,6 +29,8 @@ public sealed record GameFileCompletionResult(
     int DownloadedFiles,
     int ReusedFiles)
 {
+    public int VerifiedGeneratedFiles { get; init; }
+
     public int ClientAndLibraryFiles =>
         ClientFiles + LibraryFiles;
 

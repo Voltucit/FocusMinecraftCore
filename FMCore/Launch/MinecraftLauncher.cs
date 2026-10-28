@@ -4,7 +4,7 @@ using FMCore.Versions;
 
 namespace FMCore.Launch;
 
-public sealed class MinecraftLauncher
+public sealed partial class MinecraftLauncher
 {
     private readonly LaunchConfig _config;
     private readonly string _root;
@@ -63,7 +63,7 @@ public sealed class MinecraftLauncher
                 ref _running, 1, 0) != 0)
         {
             throw new InvalidOperationException(
-                "这个启动器实例已经有一次启动或运行尚未结束。");
+                "这个启动器实例正在检查、启动或运行游戏，请等待结束。");
         }
 
         try

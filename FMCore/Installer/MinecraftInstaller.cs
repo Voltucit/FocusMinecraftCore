@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Http;
 using System.Text.Json.Nodes;
 using FMCore.Downloads;
@@ -71,12 +71,7 @@ public sealed partial class MinecraftInstaller
         Action<MinecraftInstallProgress>? onProgress = null,
         CancellationToken cancellationToken = default)
     {
-        if (!Enum.IsDefined(Source))
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(Source),
-                "不支持这个下载源。");
-        }
+        ArgumentNullException.ThrowIfNull(Source);
         cancellationToken.ThrowIfCancellationRequested();
 
         if (Interlocked.CompareExchange(
@@ -356,3 +351,4 @@ public sealed partial class MinecraftInstaller
             $"官方配置缺少有效的 {key}。");
     }
 }
+

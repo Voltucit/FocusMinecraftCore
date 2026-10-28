@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 namespace FMCore.Downloads;
 
 public static partial class FileDownloader
@@ -141,7 +141,7 @@ public static partial class FileDownloader
     }
 }
 
-    private static bool IsTransientDownloadError(
+    internal static bool IsTransientDownloadError(
         Exception error)
     {
         return error switch
@@ -175,7 +175,7 @@ public static partial class FileDownloader
             or HttpStatusCode.GatewayTimeout;
     }
 
-    private static void EnsureSuccessfulResponse(
+    internal static void EnsureSuccessfulResponse(
         HttpResponseMessage response)
     {
         try
@@ -211,10 +211,16 @@ public static partial class FileDownloader
         DownloadRequest request,
         int attempt,
         Exception error)
+        => GetRetryDelay(request.RetryDelay, attempt, error);
+
+    internal static TimeSpan GetRetryDelay(
+        TimeSpan baseDelay,
+        int attempt,
+        Exception error)
     {
         double milliseconds = Math.Min(
             30_000,
-            request.RetryDelay.TotalMilliseconds
+            baseDelay.TotalMilliseconds
                 * Math.Pow(2, attempt - 1));
 
         TimeSpan delay =
@@ -249,3 +255,4 @@ public static partial class FileDownloader
         }
     }
 }
+

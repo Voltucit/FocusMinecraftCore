@@ -199,7 +199,7 @@ private static async Task<int> RunCoreAsync(
     return exitCode;
 }
 
-    private static async Task<int> RunProcessAsync(
+    internal static async Task<int> RunProcessAsync(
     ProcessStartInfo startInfo,
     Action<string>? onOutput,
     Action<string>? onError,
