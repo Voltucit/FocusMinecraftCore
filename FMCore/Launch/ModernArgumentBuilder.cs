@@ -175,6 +175,16 @@ internal static class ModernArgumentBuilder
         foreach (string template in templates.Game)
             info.ArgumentList.Add(Expand(template, values));
 
+        foreach (string argument in config.GameArguments)
+            info.ArgumentList.Add(argument);
+
+        if (config.Fullscreen
+            && !info.ArgumentList.Contains("--fullscreen"))
+        {
+            info.ArgumentList.Add("--fullscreen");
+        }
+
+
         return info;
     }
 

@@ -259,6 +259,17 @@ internal static class LegacyArgumentBuilder
             result.Add(height.ToString(CultureInfo.InvariantCulture));
         }
 
+        foreach (string argument in config.GameArguments)
+            result.Add(argument);
+
+        if (config.Fullscreen
+            && !result.Contains("--fullscreen"))
+        {
+            result.Add("--fullscreen");
+        }
+
+
+
         return result;
     }
 }

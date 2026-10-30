@@ -22,6 +22,8 @@ public sealed class GameCoreConfig
     public required string Version { get; init; }
 
     public string? GameDirectory { get; init; }
+
+    public IEnumerable<string>? GameArguments { get; init; }
 }
 
 public sealed class JavaConfig
@@ -40,4 +42,6 @@ public sealed class GameWindowConfig
     public int? Width { get; init; }
 
     public int? Height { get; init; }
+
+    public bool Fullscreen { get; init; }
 }

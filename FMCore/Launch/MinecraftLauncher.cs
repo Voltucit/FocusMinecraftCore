@@ -13,7 +13,7 @@ public sealed partial class MinecraftLauncher
     private readonly string[] _jvmArguments;
     private readonly string? _authlibInjectorPath;
     private int _running;
-
+    private readonly string[] _gameArguments;
     public MinecraftLauncher(LaunchConfig config)
     {
         ArgumentNullException.ThrowIfNull(config);
@@ -45,6 +45,9 @@ public sealed partial class MinecraftLauncher
         // 复制集合，避免外部修改原列表影响本次启动设置。
         _jvmArguments =
             config.JavaConfig.JvmArguments?.ToArray() ?? [];
+
+        _gameArguments =
+            config.GameCoreConfig.GameArguments?.ToArray() ?? [];
 
         _authlibInjectorPath = config.JavaConfig.AuthlibInjectorPath is null
             ? null
@@ -121,7 +124,11 @@ public sealed partial class MinecraftLauncher
             windowWidth: _config.GameWindowConfig?.Width,
             windowHeight: _config.GameWindowConfig?.Height,
             jvmArguments: _jvmArguments,
-            authlibInjectorPath: _authlibInjectorPath);
+            authlibInjectorPath: _authlibInjectorPath)
+        {
+            Fullscreen = _config.GameWindowConfig?.Fullscreen ?? false,
+            GameArguments = _gameArguments
+        };
 
         return await Launcher.RunWithProgressAsync(
             prepared,

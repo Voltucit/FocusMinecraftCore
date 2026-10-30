@@ -102,7 +102,11 @@ public sealed partial class MinecraftLauncher
                 windowWidth: _config.GameWindowConfig?.Width,
                 windowHeight: _config.GameWindowConfig?.Height,
                 jvmArguments: _jvmArguments,
-                authlibInjectorPath: _authlibInjectorPath);
+                authlibInjectorPath: _authlibInjectorPath)
+            {
+                Fullscreen = _config.GameWindowConfig?.Fullscreen ?? false,
+                GameArguments = _gameArguments
+            };
 
             if (_config.Account is MicrosoftAccount account
                 && account.ExpiresAt <= DateTimeOffset.UtcNow)

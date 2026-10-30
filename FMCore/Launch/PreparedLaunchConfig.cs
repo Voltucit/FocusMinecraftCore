@@ -160,4 +160,29 @@ public sealed class PreparedLaunchConfig
 
         return result.AsReadOnly();
     }
+
+    public bool Fullscreen { get; init; }
+
+    private IReadOnlyList<string> _gameArguments = Array.Empty<string>();
+
+    public IReadOnlyList<string> GameArguments
+    {
+        get => _gameArguments;
+        init
+        {
+            ArgumentNullException.ThrowIfNull(value);
+
+            string[] arguments = value.ToArray();
+
+            if (arguments.Any(argument =>
+                    argument is null || argument.Contains('\0')))
+            {
+                throw new ArgumentException(
+                    "游戏参数不能为 null，也不能包含空字符。",
+                    nameof(GameArguments));
+            }
+
+            _gameArguments = Array.AsReadOnly(arguments);
+        }
+    }
 }
