@@ -25,7 +25,7 @@
 
 ## 安装指南
 
-先安装 [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)。目前 2.0.1 正在准备发布；使用仓库中的 2.0 代码，可以直接引用项目。
+先安装 [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)。
 
 将本仓库放在你的启动器项目旁边，在启动器项目目录执行：
 
