@@ -168,6 +168,23 @@ internal static class ModernArgumentBuilder
         foreach (string template in templates.Jvm)
             info.ArgumentList.Add(Expand(template, values));
 
+        // 26.x 的默认用户参数不能覆盖调用方明确指定的设置：
+        // 内存由 MaxMemoryMb 决定，其余同名参数以调用方的 JvmArguments 为准。
+        foreach (string template in templates.UserJvm)
+        {
+            if (IsMemoryOption(template)
+                || config.JvmArguments.Contains(template, StringComparer.Ordinal))
+                continue;
+
+            string expanded = Expand(template, values);
+
+            if (config.JvmArguments.Contains(expanded, StringComparer.Ordinal)
+                || info.ArgumentList.Contains(expanded))
+                continue;
+
+            info.ArgumentList.Add(expanded);
+        }
+
         if (logging is not null)
             info.ArgumentList.Add(logging.Argument);
 
@@ -189,6 +206,11 @@ internal static class ModernArgumentBuilder
 
         return info;
     }
+
+    // 内存由调用方的 MaxMemoryMb 决定，默认用户参数里的内存项一律忽略。
+    private static bool IsMemoryOption(string template) =>
+        template.StartsWith("-Xmx", StringComparison.Ordinal)
+        || template.StartsWith("-Xms", StringComparison.Ordinal);
 
     private static void CheckJavaVersion(
         IReadOnlyList<MinecraftVersion> chain,

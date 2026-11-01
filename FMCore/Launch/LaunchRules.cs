@@ -72,9 +72,9 @@ internal static class LaunchRules
                         "规则 os 必须是 JSON 对象。");
 
                 if (os.Any(pair =>
-                        pair.Key is not ("name" or "arch" or "version")))
+                        pair.Key is not ("name" or "arch" or "version" or "versionRange")))
                     throw new NotSupportedException(
-                        "当前支持 os.name、os.arch 和 os.version。");
+                        "当前支持 os.name、os.arch、os.version 和 os.versionRange。");
 
                 if (os.ContainsKey("name"))
                 {
@@ -124,6 +124,27 @@ internal static class LaunchRules
 
                     matches &= MatchesPattern(versionText, pattern);
                 }
+
+                // 26.x 用 versionRange 表示系统版本区间：min 包含，max 不包含。
+                if (os.ContainsKey("versionRange"))
+                {
+                    if (os["versionRange"] is not JsonObject range)
+                        throw new InvalidDataException(
+                            "os.versionRange 必须是 JSON 对象。");
+
+                    if (range.Any(pair =>
+                            pair.Key is not ("min" or "max")))
+                        throw new NotSupportedException(
+                            "os.versionRange 只支持 min 和 max。");
+
+                    Version systemVersion = Environment.OSVersion.Version;
+
+                    if (range.ContainsKey("min"))
+                        matches &= systemVersion >= ReadRangeVersion(range, "min");
+
+                    if (range.ContainsKey("max"))
+                        matches &= systemVersion < ReadRangeVersion(range, "max");
+                }
             }
 
             if (rule.TryGetPropertyValue(
@@ -160,6 +181,20 @@ internal static class LaunchRules
 
         return allowed;
     }
+
+    /// <summary>读取 versionRange 的端点；格式无效时按版本数据错误报告。</summary>
+    private static Version ReadRangeVersion(
+        JsonObject range,
+        string field) =>
+        Version.TryParse(
+            MinecraftVersionReader.ReadRequiredString(
+                range,
+                field,
+                $"os.versionRange.{field} 必须是有效的版本号。"),
+            out Version? version)
+            ? version
+            : throw new InvalidDataException(
+                $"os.versionRange.{field} 必须是有效的版本号。");
 
     internal static bool MatchesPattern(
         string input,

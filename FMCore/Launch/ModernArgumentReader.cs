@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Nodes;
+using System.Text.Json.Nodes;
 using FMCore.Java;
 using FMCore.Versions;
 
@@ -6,7 +6,8 @@ namespace FMCore.Launch;
 
 internal sealed record ModernArgumentTemplates(
     IReadOnlyList<string> Jvm,
-    IReadOnlyList<string> Game);
+    IReadOnlyList<string> Game,
+    IReadOnlyList<string> UserJvm);
 
 internal static class ModernArgumentReader
 {
@@ -24,6 +25,7 @@ internal static class ModernArgumentReader
 
         List<string> jvm = [];
         List<string> game = [];
+        List<string> userJvm = [];
         bool found = false;
 
         // 新版数组按父版本到子版本的顺序追加。
@@ -42,7 +44,7 @@ internal static class ModernArgumentReader
                     $"版本 {current.Id} 的 arguments 必须是对象。");
 
             if (arguments.Any(pair =>
-                    pair.Key is not ("jvm" or "game")))
+                    pair.Key is not ("jvm" or "game" or "default-user-jvm")))
                 throw new NotSupportedException(
                     "arguments 中包含暂未支持的参数分类。");
 
@@ -50,6 +52,11 @@ internal static class ModernArgumentReader
 
             AppendSection(
                 arguments, "jvm", jvm, java, features);
+
+            // 26.x 起新增默认用户参数：官方在用户未自定义时补上，
+            // 由启动时决定是否采用，不覆盖调用方明确传入的设置。
+            AppendSection(
+                arguments, "default-user-jvm", userJvm, java, features);
 
             AppendSection(
                 arguments, "game", game, java, features);
@@ -61,7 +68,8 @@ internal static class ModernArgumentReader
 
         return new ModernArgumentTemplates(
             jvm.AsReadOnly(),
-            game.AsReadOnly());
+            game.AsReadOnly(),
+            userJvm.AsReadOnly());
     }
 
     private static void AppendSection(
@@ -96,11 +104,9 @@ internal static class ModernArgumentReader
                 throw new NotSupportedException(
                     "条件参数包含暂未支持的字段。");
 
-            if (!conditional.ContainsKey("rules"))
-                throw new InvalidDataException(
-                    "条件参数缺少 rules。");
-
-            if (!LaunchRules.IsAllowed(
+            // 没有 rules 的条目等价于所有环境都适用，26.x 的默认用户参数这样书写。
+            if (conditional.ContainsKey("rules")
+                && !LaunchRules.IsAllowed(
                     conditional, java, features))
                 continue;
 

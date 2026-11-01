@@ -81,6 +81,28 @@ jobs:
       - run: dotnet restore FMCore.slnx
       - run: dotnet build FMCore.slnx -c Release --no-restore
       - run: dotnet pack FMCore/FMCore.csproj -c Release --no-build --no-restore -o artifacts/packages
+      - name: 检查 NuGet 包内图标
+        shell: pwsh
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          $path = "artifacts/packages/$env:PACKAGE_ID.$env:VERSION.nupkg"
+          $archive = [System.IO.Compression.ZipFile]::OpenRead((Resolve-Path -LiteralPath $path).Path)
+          try {
+            $reader = [System.IO.StreamReader]::new($archive.GetEntry("$env:PACKAGE_ID.nuspec").Open())
+            try { [xml]$metadata = $reader.ReadToEnd() } finally { $reader.Dispose() }
+            $iconName = [string]$metadata.package.metadata.icon
+            if ($iconName -cne 'icon.png') { throw 'NuGet package must declare icon.png as its icon.' }
+            $icon = $archive.GetEntry($iconName)
+            if ($null -eq $icon -or $icon.Length -eq 0) { throw 'NuGet package is missing its icon image.' }
+            $stream = $icon.Open()
+            try { $actualHash = [Convert]::ToHexString([System.Security.Cryptography.SHA256]::HashData($stream)) } finally { $stream.Dispose() }
+            $expectedHash = (Get-FileHash -LiteralPath assets/icon.png -Algorithm SHA256).Hash
+            if ($actualHash -cne $expectedHash) { throw 'Packed icon differs from assets/icon.png.' }
+            Write-Host "NuGet icon verified: $iconName"
+          } finally {
+            $archive.Dispose()
+          }
       - name: 生成本版变更与产物校验清单
         shell: pwsh
         env:

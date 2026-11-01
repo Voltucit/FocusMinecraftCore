@@ -94,7 +94,8 @@ public sealed class MinecraftVersionConverter
                 throw new InvalidDataException("arguments 必须是对象。");
             foreach (var pair in sections)
             {
-                if (pair.Key is not ("jvm" or "game"))
+                // 26.x 新增 default-user-jvm，与 jvm/game 一样按原顺序合并。
+                if (pair.Key is not ("jvm" or "game" or "default-user-jvm"))
                     throw new NotSupportedException("arguments 中包含暂未支持的参数分类。");
                 if (pair.Value is not JsonArray values)
                     throw new InvalidDataException($"arguments.{pair.Key} 必须是列表。");
