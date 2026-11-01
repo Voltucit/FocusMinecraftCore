@@ -28,7 +28,7 @@ Console.WriteLine(version.Directory);
 
 ## 查询父版本
 
-Fabric 等版本可能借用原版的文件。已有上面的 `reader`、`version` 和同一根目录的 `versions` 时：
+外部导入或此前安装的加载器版本可能借用原版的文件。已有上面的 `reader`、`version` 和同一根目录的 `versions` 时：
 
 ```csharp
 var chain = reader.GetInheritanceChain(version, versions);
@@ -40,3 +40,18 @@ string mainClass = reader.ResolveMainClass(version, versions);
 界面中可改用 `GetVersionsAsync()` 和 `GetVersionAsync()`，参数顺序相同。启动游戏时无需手动执行这些准备步骤，直接使用 [MinecraftLauncher](launch.md)。
 
 [可运行示例](../examples/README.md) · [完整接口](public-api.md#fmcoreversions)
+
+## 让已有版本独立启动
+
+新安装的 Fabric、Forge、NeoForge 和 OptiFine 会自动生成独立版本。已有版本使用 `FMCore.Versions`：
+
+```csharp
+using FMCore.Versions;
+
+var version = await new MinecraftVersionConverter(
+    "1.21.10-Fabric-0.17.3", ".minecraft").MakeIndependentAsync();
+```
+
+转换时需要原有父版本仍然存在。核心合并完整配置，把校验通过的客户端复制到当前版本目录，并备份原配置。成功后可移除普通版目录，公共 `assets` 和 `libraries` 仍需保留。存档、Mod、资源包和玩家设置不会被搬动。已经独立的版本直接复用，不反复生成备份。
+
+默认游戏工作目录是各自的 `versions/<目录名>`，所以存档、Mod 和设置彼此独立；显式指定 `GameDirectory` 时仍使用调用方选择的目录。取消、缺失父版本、文件校验失败或已有客户端内容不同会报错，已有数据保留。

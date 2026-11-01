@@ -1,4 +1,4 @@
-﻿using System.Security.Cryptography;
+using System.Security.Cryptography;
 using System.Text.Json.Nodes;
 using FMCore.Downloads;
 using FMCore.Versions;
@@ -7,7 +7,11 @@ namespace FMCore.Installer;
 
 internal sealed record AssetDownloadPlan(
     string ObjectsDirectory,
-    IReadOnlyList<DownloadRequest> Requests);
+    IReadOnlyList<DownloadRequest> Requests,
+    IReadOnlyList<AssetMapping> Mappings,
+    IReadOnlyList<string> MappingDirectories);
+
+internal sealed record AssetMapping(string SourcePath, DownloadRequest Request);
 
 internal static partial class ResourceDownloadPlanner
 {
@@ -29,7 +33,8 @@ internal static partial class ResourceDownloadPlanner
     internal static Task<AssetDownloadPlan> ReadAssetObjectsAsync(
         DownloadRequest indexRequest,
         string minecraftRoot,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        string? gameDirectory = null)
     {
         ArgumentNullException.ThrowIfNull(indexRequest);
         ArgumentException.ThrowIfNullOrWhiteSpace(minecraftRoot);
@@ -40,6 +45,7 @@ internal static partial class ResourceDownloadPlanner
             () => ReadAssetObjectsCoreAsync(
                 indexRequest,
                 minecraftRoot,
+                gameDirectory ?? minecraftRoot,
                 cancellationToken),
             cancellationToken);
     }
@@ -48,6 +54,7 @@ internal static partial class ResourceDownloadPlanner
         ReadAssetObjectsCoreAsync(
             DownloadRequest indexRequest,
             string minecraftRoot,
+            string gameDirectory,
             CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -121,12 +128,8 @@ internal static partial class ResourceDownloadPlanner
             ?? throw new InvalidDataException(
                 "资源索引的最外层必须是 JSON 对象。");
 
-        if (ReadAssetFlag(index, "virtual")
-            || ReadAssetFlag(index, "map_to_resources"))
-        {
-            throw new NotSupportedException(
-                "暂未支持 virtual 或 map_to_resources 资源映射。");
-        }
+        AssetLayout layout = AssetLayout.Read(index, minecraftRoot,
+            Path.GetFileNameWithoutExtension(request.FilePath), gameDirectory);
 
         if (index["objects"] is not JsonObject entries)
         {
@@ -136,6 +139,8 @@ internal static partial class ResourceDownloadPlanner
 
         Dictionary<string, DownloadRequest> requests =
             new(StringComparer.Ordinal);
+
+        Dictionary<string, AssetMapping> mappings = new(PathSafety.Comparer);
 
         foreach (var entry in entries)
         {
@@ -168,69 +173,58 @@ internal static partial class ResourceDownloadPlanner
                     $"资源 {entry.Key} 的 size 必须是非负整数。");
             }
 
-            if (requests.TryGetValue(
-                    hash,
-                    out DownloadRequest? previous))
+            if (!requests.TryGetValue(hash, out DownloadRequest? source))
             {
-                if (previous.Size != size)
+                source = FileDownloader.NormalizeRequest(new DownloadRequest
                 {
-                    throw new InvalidDataException(
-                        $"同一资源哈希声明了不同大小：{hash}");
-                }
-
-                continue;
+                    Url = "https://resources.download.minecraft.net/" + $"{hash[..2]}/{hash}",
+                    FilePath = AssetLayout.ResolveWithin(objectsDirectory, $"{hash[..2]}/{hash}"),
+                    Size = size,
+                    Sha1 = hash
+                });
+                requests.Add(hash, source);
             }
-
-            string filePath = PathSafety.Resolve(
-                Path.Combine(
-                    objectsDirectory,
-                    hash[..2],
-                    hash));
-
-            if (!PathSafety.IsWithin(
-                    filePath,
-                    objectsDirectory))
+            else if (source.Size != size)
             {
-                throw new InvalidDataException(
-                    "资源文件路径越出了 objects 目录。");
+                throw new InvalidDataException($"同一资源哈希声明了不同大小：{hash}");
             }
 
-            requests.Add(
-                hash,
-                FileDownloader.NormalizeRequest(
-                    new DownloadRequest
+            // 一个哈希可以有多个逻辑名称；对象去重不应丢失任何映射。
+            foreach (string directory in layout.MappingDirectories)
+            {
+                string target = AssetLayout.ResolveWithin(directory, entry.Key);
+                if (mappings.TryGetValue(target, out AssetMapping? previous))
+                {
+                    if (previous.Request.Sha1 != hash)
+                        throw new InvalidDataException($"资源映射目标冲突：{entry.Key}");
+                    continue;
+                }
+                mappings.Add(target, new AssetMapping(source.FilePath,
+                    FileDownloader.NormalizeRequest(new DownloadRequest
                     {
-                        Url =
-                            "https://resources.download.minecraft.net/" +
-                            $"{hash[..2]}/{hash}",
+                        Url = source.Url, FilePath = target, Size = size, Sha1 = hash
+                    })));
+            }
+        }
 
-                        FilePath = filePath,
-                        Size = size,
-                        Sha1 = hash
-                    }));
+        foreach (string target in mappings.Keys)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            for (string? parent = Path.GetDirectoryName(target);
+                 parent is not null; parent = Path.GetDirectoryName(parent))
+            {
+                if (mappings.ContainsKey(parent))
+                    throw new InvalidDataException($"资源映射文件与父目录冲突：{parent}");
+            }
         }
 
         cancellationToken.ThrowIfCancellationRequested();
 
         return new AssetDownloadPlan(
             objectsDirectory,
-            Array.AsReadOnly(requests.Values.ToArray()));
+            Array.AsReadOnly(requests.Values.ToArray()),
+            Array.AsReadOnly(mappings.Values.ToArray()),
+            layout.MappingDirectories);
     }
 
-    private static bool ReadAssetFlag(
-        JsonObject index,
-        string name)
-    {
-        if (!index.TryGetPropertyValue(name, out JsonNode? node))
-            return false;
-
-        if (node is JsonValue value
-            && value.TryGetValue<bool>(out bool result))
-        {
-            return result;
-        }
-
-        throw new InvalidDataException(
-            $"资源索引的 {name} 必须是布尔值。");
-    }
 }

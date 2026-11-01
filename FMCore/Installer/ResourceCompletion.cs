@@ -1,4 +1,4 @@
-﻿using FMCore.Downloads;
+using FMCore.Downloads;
 
 namespace FMCore.Installer;
 
@@ -8,7 +8,8 @@ public enum ResourceCompletionStage
     CompletingMetadata,
     ReadingAssetObjects,
     CompletingAssetObjects,
-    Completed
+    Completed,
+    CompletingAssetMappings
 }
 
 public sealed record ResourceCompletionProgress(
@@ -26,7 +27,11 @@ public sealed record ResourceCompletionResult(
     int DownloadedFiles,
     int ReusedFiles)
 {
-    public int TotalFiles => MetadataFiles + AssetFiles;
+    public int MappedFiles { get; init; }
+
+    public int CopiedFiles { get; init; }
+
+    public int TotalFiles => MetadataFiles + AssetFiles + MappedFiles;
 
     public IReadOnlyList<ResourceFileBackup> Backups { get; init; } =
         Array.Empty<ResourceFileBackup>();

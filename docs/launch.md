@@ -103,7 +103,7 @@ Microsoft 登录返回的账号直接填入 `Account`，见 [Microsoft 登录](m
 
 - 新版游戏按最低 Java 要求检查，不要求必须等于某个主版本；高版本 Java 是否兼容具体 Mod，仍需实际确认。
 - 已补齐新版参数配旧式原生库的启动处理。已用 Windows x64 Java 8 新装并启动 1.16.5＋Forge 36.2.34＋OptiFine G8，确认进入主菜单。
-- 暂不支持 `virtual`、`map_to_resources` 和只有 `assets` 字段的旧资源存放方式。
+- 支持 `virtual` 和 `map_to_resources` 资源映射；仅含 `assets`、没有 `assetIndex` 的旧配置仍不支持。
 - 旧式启动参数暂不支持用双引号把多个词拼成一个参数。
 - 原生库会解压到所选版本目录中的独立 `natives` 文件夹，目前用完后暂时保留。解压会检查文件路径和压缩内容。
 - 当前没有真实 x86、ARM64 游戏运行结果。

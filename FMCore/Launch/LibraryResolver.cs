@@ -27,6 +27,29 @@ internal static class LibraryResolver
         return entries;
     }
 
+    internal static IReadOnlyList<IReadOnlyList<JsonObject>> ReadLibraryLayers(MinecraftVersion version)
+    {
+        IReadOnlyList<JsonObject> entries = ReadLibraryEntries(version);
+        JsonObject data = MinecraftVersionReader.ReadVersionJson(version.Directory);
+        if (!data.TryGetPropertyValue(MinecraftVersionConverter.MetadataKey, out JsonNode? marker))
+            return [entries];
+        if (marker is not JsonObject metadata || metadata["libraryLayers"] is not JsonArray sizes)
+            throw new InvalidDataException("独立版本的依赖分层说明无效。");
+        List<IReadOnlyList<JsonObject>> layers = [];
+        int offset = 0;
+        foreach (JsonNode? node in sizes)
+        {
+            if (node is not JsonValue value || !value.TryGetValue<int>(out int count)
+                || count < 0 || count > entries.Count - offset)
+                throw new InvalidDataException("独立版本的依赖分层数量无效。");
+            layers.Add(entries.Skip(offset).Take(count).ToArray());
+            offset += count;
+        }
+        if (offset != entries.Count)
+            throw new InvalidDataException("独立版本的依赖数量与分层说明不一致。");
+        return layers;
+    }
+
     internal static bool IsLibraryAllowed(JsonObject library, string osName)
     {
         if (osName is not ("windows" or "linux" or "osx"))
@@ -50,12 +73,20 @@ internal static class LibraryResolver
             JsonObject os = new();
             if (rule.TryGetPropertyValue("os", out JsonNode? osNode))
                 os = osNode as JsonObject ?? throw new InvalidDataException("规则 os 必须是对象。");
-            if (os.Any(pair => pair.Key != "name"))
-                throw new NotSupportedException("暂未支持 os.arch、os.version 等额外系统条件。");
+            if (os.Any(pair => pair.Key is not ("name" or "version")))
+                throw new NotSupportedException("暂未支持 os.arch 等额外系统条件。");
             if (os.ContainsKey("name"))
             {
                 string name = MinecraftVersionReader.ReadRequiredString(os, "name", "os.name 必须是非空字符串。");
                 if (name != osName)
+                    continue;
+            }
+            if (os.ContainsKey("version"))
+            {
+                string pattern = MinecraftVersionReader.ReadRequiredString(
+                    os, "version", "os.version 必须是非空字符串。");
+                Version version = Environment.OSVersion.Version;
+                if (!LaunchRules.MatchesPattern($"{version.Major}.{version.Minor}", pattern))
                     continue;
             }
             allowed = action == "allow";
@@ -361,9 +392,10 @@ internal static IReadOnlyList<JsonObject> GetWindowsLibraryEntries(
     Dictionary<string, (int Level, JsonObject Library)> selected =
         new(StringComparer.Ordinal);
 
-    for (int level = 0; level < chain.Count; level++)
+    var layers = chain.SelectMany(ReadLibraryLayers).ToArray();
+    for (int level = 0; level < layers.Length; level++)
     {
-        foreach (JsonObject library in ReadLibraryEntries(chain[level]))
+        foreach (JsonObject library in layers[level])
         {
             if (!IsLibraryAllowed(library, "windows"))
                 continue;
@@ -380,7 +412,7 @@ internal static IReadOnlyList<JsonObject> GetWindowsLibraryEntries(
                 // 同一层只允许完全相同的重复声明。
                 if (!JsonNode.DeepEquals(previous.Library, library))
                     throw new InvalidDataException(
-                        $"版本 {chain[level].Id} 存在冲突的依赖声明：{name}");
+                        $"版本 {version.Id} 存在冲突的依赖声明：{name}");
 
                 continue;
             }

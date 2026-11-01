@@ -295,6 +295,10 @@ public sealed partial class ForgeInstaller
                 progress.Message, batch: progress.Download),
             cancellationToken).ConfigureAwait(false);
 
+        Report(ForgeInstallStage.WritingProfile, "生成独立的完整版本配置与客户端……");
+        _ = await new MinecraftVersionConverter(VersionId, _root)
+            .MakeIndependentAsync(cancellationToken).ConfigureAwait(false);
+
         Report(ForgeInstallStage.Completed, "Forge 客户端安装完成。");
         cancellationToken.ThrowIfCancellationRequested();
 

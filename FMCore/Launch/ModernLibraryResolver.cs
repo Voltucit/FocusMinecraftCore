@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Nodes;
+using System.Text.Json.Nodes;
 using FMCore.Installer;
 using FMCore.Java;
 using FMCore.Versions;
@@ -25,7 +25,7 @@ internal static class ModernLibraryResolver
             new(StringComparer.Ordinal);
 
         // 子版本仍然优先于父版本。
-        foreach (MinecraftVersion current in chain)
+        foreach (var layer in chain.SelectMany(LibraryResolver.ReadLibraryLayers))
         {
             Dictionary<string, JsonObject> level =
                 new(StringComparer.Ordinal);
@@ -33,7 +33,7 @@ internal static class ModernLibraryResolver
             List<string> order = [];
 
             foreach (JsonObject library
-                     in LibraryResolver.ReadLibraryEntries(current))
+                     in layer)
             {
                 if (!LaunchRules.IsAllowedForArchitecture(
                         library,

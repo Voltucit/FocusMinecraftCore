@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Nodes;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using FMCore.Java;
 using FMCore.Versions;
@@ -161,7 +161,7 @@ internal static class LaunchRules
         return allowed;
     }
 
-    private static bool MatchesPattern(
+    internal static bool MatchesPattern(
         string input,
         string pattern)
     {

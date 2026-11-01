@@ -1,4 +1,4 @@
-﻿using System.Runtime.InteropServices;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using FMCore.Downloads;
 using FMCore.Installer;
@@ -10,6 +10,8 @@ public sealed class GameFileChecker
     private readonly string _versionId;
     private readonly string _root;
     private readonly string _architecture;
+
+    public string? GameDirectory { get; init; }
 
     public GameFileChecker(
         string versionId,
@@ -115,15 +117,23 @@ public sealed class GameFileChecker
             // 解析器会再次校验它实际读取的索引字节。
             // 不从缺失或校验失败的索引推断资源文件清单。
             var assets = await ResourceDownloadPlanner.ReadAssetObjectsAsync(
-                index, _root, cancellationToken).ConfigureAwait(false);
+                index, _root, cancellationToken,
+                gameDirectory: GameDirectory ?? new FMCore.Versions.MinecraftVersionReader()
+                    .GetVersion(_versionId, _root).Directory).ConfigureAwait(false);
 
             objectsEnumerated = true;
-            knownFiles = checked(knownFiles + assets.Requests.Count);
+            knownFiles = checked(knownFiles + assets.Requests.Count + assets.Mappings.Count);
 
             foreach (DownloadRequest request in assets.Requests)
             {
                 await CheckOneAsync(
                     "assetObject", request.FilePath,
+                    request.Size, request.Sha1).ConfigureAwait(false);
+            }
+            foreach (AssetMapping mapping in assets.Mappings)
+            {
+                DownloadRequest request = mapping.Request;
+                await CheckOneAsync("assetMapping", request.FilePath,
                     request.Size, request.Sha1).ConfigureAwait(false);
             }
         }

@@ -14,6 +14,8 @@ foreach (var issue in result.Issues)
     Console.WriteLine($"{issue.FilePath}：{issue.Message}");
 ```
 
+同时检查旧版 `virtual` 和 `map_to_resources` 映射文件。自定义启动工作目录时，设置检查器的 `GameDirectory` 与启动配置一致。
+
 只读取本地文件，不联网、下载、修复或创建目录。要修复问题，另用[文件补全](game-files.md)。
 
 | 返回内容 | 含义 |

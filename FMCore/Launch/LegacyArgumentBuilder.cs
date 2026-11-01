@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -34,7 +34,7 @@ internal static class LegacyArgumentBuilder
 
         AssetPaths assets =
             LaunchResourceResolver.ResolveAssets(
-                config.Version, minecraftRoot);
+                config.Version, minecraftRoot, config.GameDirectory);
 
         // 已声明的日志配置缺失时，保留原有错误，不静默跳过。
         LoggingConfig? logging =
@@ -111,7 +111,7 @@ internal static class LegacyArgumentBuilder
 
         AssetPaths assets =
             LaunchResourceResolver.ResolveAssets(
-                config.Version, minecraftRoot);
+                config.Version, minecraftRoot, config.GameDirectory);
 
         return ExpandTemplate(
             metadata.Template,
@@ -200,12 +200,14 @@ internal static class LegacyArgumentBuilder
                 ["auth_player_name"] = config.Account.Username,
                 ["auth_uuid"] = config.Account.Uuid.ToString("N"),
                 ["auth_access_token"] = config.Account.AccessToken,
+                ["auth_session"] = $"token:{config.Account.AccessToken}:{config.Account.Uuid:N}",
                 ["user_type"] = config.Account.UserType,
                 ["user_properties"] = "{}",
                 ["version_name"] = config.Version.Id,
                 ["version_type"] = versionType,
                 ["game_directory"] = config.GameDirectory,
                 ["assets_root"] = assets.AssetsRoot,
+                ["game_assets"] = assets.GameAssets,
                 ["assets_index_name"] = assets.IndexId
             };
 

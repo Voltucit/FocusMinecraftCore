@@ -10,6 +10,8 @@ public sealed partial class GameFileCompleter
     private readonly string _architecture;
     private readonly int _maxConcurrency;
     private readonly bool _replaceInvalidFiles;
+    public string? GameDirectory { get; init; }
+
     public DownloadSource Source { get; init; } =
         DownloadSource.Official;
     private int _running;
@@ -181,7 +183,8 @@ public sealed partial class GameFileCompleter
             _maxConcurrency,
             _replaceInvalidFiles)
         {
-            Source = this.Source
+            Source = this.Source,
+            GameDirectory = this.GameDirectory
         };
 
         ResourceCompletionResult resources =
@@ -226,7 +229,9 @@ public sealed partial class GameFileCompleter
             ReusedFiles: reusedFiles)
         {
             Backups = Array.AsReadOnly(backups),
-            VerifiedGeneratedFiles = generatedFiles.Length
+            VerifiedGeneratedFiles = generatedFiles.Length,
+            MappedFiles = resources.MappedFiles,
+            CopiedFiles = resources.CopiedFiles
         };
         Report(
             GameFileCompletionStage.Completed,

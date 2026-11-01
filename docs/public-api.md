@@ -55,6 +55,19 @@ string ResolveMainClass(
     MinecraftVersion version, IReadOnlyList<MinecraftVersion> versions)
 ```
 
+### MinecraftVersionConverter
+
+将已有版本转换为不依赖父版本目录的完整版本，返回更新后的 `MinecraftVersion`。需要原父版本配置和客户端可用；不下载文件、不移动存档、Mod 或设置。取消、缺文件、无效配置、客户端校验失败和目标文件冲突会抛出对应异常。新安装的已支持加载器自动执行这一步，普通调用无需额外操作。
+
+```text
+public sealed class MinecraftVersionConverter
+
+public MinecraftVersionConverter(string versionId, string minecraftRoot)
+
+public Task<MinecraftVersion> MakeIndependentAsync(
+    CancellationToken cancellationToken = default)
+```
+
 ## FMCore.Java
 
 读取或安装 Java，使用示例见[查找 Java](java.md)和[安装 Java](java-installation.md)。
@@ -708,6 +721,8 @@ public enum ModrinthSearchSort { Relevance, Downloads, Follows, Newest, Updated 
 ```text
 public sealed class GameFileChecker
 
+public string? GameDirectory { get; init; }
+
 public GameFileChecker(
     string versionId,
     string minecraftRoot,
@@ -926,6 +941,8 @@ public sealed record MinecraftInstallResult(
 ```text
 public sealed partial class GameFileCompleter
 
+public string? GameDirectory { get; init; }
+
 public GameFileCompleter(
     string versionId,
     string minecraftRoot,
@@ -965,12 +982,16 @@ public sealed record GameFileCompletionResult(
     int ReusedFiles)
 {
     public int VerifiedGeneratedFiles { get; init; }
+    public int MappedFiles { get; init; }
+    public int CopiedFiles { get; init; }
     public int ClientAndLibraryFiles { get; }
     public int TotalFiles { get; }
     public IReadOnlyList<GameFileBackup> Backups { get; init; }
     public int RepairedFiles { get; }
 }
 ```
+
+映射文件计入 `TotalFiles`，`MappedFiles` 是映射目标数，`CopiedFiles` 是本次从本地对象复制的文件数，不计入 `DownloadedFiles`。`GameDirectory` 默认使用所选版本目录；指定自定义启动工作目录时，补全和检查也填写同一个目录。
 
 ### GameResourceCompleter
 
@@ -980,6 +1001,8 @@ public sealed record GameFileCompletionResult(
 
 ```text
 public sealed class GameResourceCompleter
+
+public string? GameDirectory { get; init; }
 
 public GameResourceCompleter(
     string versionId,
@@ -997,7 +1020,8 @@ public enum ResourceCompletionStage
     CompletingMetadata,
     ReadingAssetObjects,
     CompletingAssetObjects,
-    Completed
+    Completed,
+    CompletingAssetMappings
 }
 
 public sealed record ResourceCompletionProgress(
@@ -1011,6 +1035,8 @@ public sealed record ResourceCompletionResult(
     int DownloadedFiles,
     int ReusedFiles)
 
+public int MappedFiles { get; init; }
+public int CopiedFiles { get; init; }
 public int TotalFiles { get; }
 public IReadOnlyList<ResourceFileBackup> Backups { get; init; }
 public int RepairedFiles { get; }

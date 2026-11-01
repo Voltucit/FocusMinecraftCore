@@ -1,4 +1,4 @@
-﻿using FMCore.Downloads;
+using FMCore.Downloads;
 
 namespace FMCore.Installer;
 
@@ -31,13 +31,18 @@ public sealed record GameFileCompletionResult(
 {
     public int VerifiedGeneratedFiles { get; init; }
 
+    public int MappedFiles { get; init; }
+
+    public int CopiedFiles { get; init; }
+
     public int ClientAndLibraryFiles =>
         ClientFiles + LibraryFiles;
 
     public int TotalFiles =>
         ClientAndLibraryFiles
         + ResourceMetadataFiles
-        + AssetFiles;
+        + AssetFiles
+        + MappedFiles;
 
     public IReadOnlyList<GameFileBackup> Backups { get; init; } =
         Array.Empty<GameFileBackup>();

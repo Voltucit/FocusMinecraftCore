@@ -1,3 +1,4 @@
+using FMCore.Versions;
 using FMCore.Downloads;
 
 namespace FMCore.Installer;
@@ -9,6 +10,8 @@ public sealed class GameResourceCompleter
     private readonly int _maxConcurrency;
     private readonly bool _replaceInvalidFiles;
     private int _running;
+
+    public string? GameDirectory { get; init; }
 
     public DownloadSource Source { get; init; } =
         DownloadSource.Official;
@@ -120,7 +123,9 @@ public sealed class GameResourceCompleter
             await ResourceDownloadPlanner.ReadAssetObjectsAsync(
                 indexRequest,
                 _minecraftRoot,
-                cancellationToken).ConfigureAwait(false);
+                cancellationToken,
+                gameDirectory: GameDirectory ?? new MinecraftVersionReader()
+                    .GetVersion(_versionId, _minecraftRoot).Directory).ConfigureAwait(false);
 
         cancellationToken.ThrowIfCancellationRequested();
 
@@ -142,17 +147,46 @@ public sealed class GameResourceCompleter
 
         cancellationToken.ThrowIfCancellationRequested();
 
+        List<DownloadResult> mappingResults = [];
+        if (plan.MappingDirectories.Count != 0)
+        {
+            Report(ResourceCompletionStage.CompletingAssetMappings,
+                "生成并校验旧版资源映射……");
+            foreach (string directory in plan.MappingDirectories)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                Directory.CreateDirectory(directory);
+            }
+            long totalBytes = plan.Mappings.Sum(item => item.Request.Size);
+            long processedBytes = 0;
+            foreach (AssetMapping mapping in plan.Mappings)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                mappingResults.Add(await FileDownloader.CopyVerifiedAsync(
+                    mapping.SourcePath, ApplyPolicy(mapping.Request), cancellationToken)
+                    .ConfigureAwait(false));
+                processedBytes = checked(processedBytes + mapping.Request.Size);
+                Report(ResourceCompletionStage.CompletingAssetMappings,
+                    "旧版资源映射", new DownloadBatchProgress(
+                        plan.Mappings.Count, mappingResults.Count, 0, 1,
+                        processedBytes, totalBytes));
+            }
+        }
+        cancellationToken.ThrowIfCancellationRequested();
+
         int downloadedFiles =
             metadataResults.Count(item => !item.AlreadyPresent)
             + assetResults.Count(item => !item.AlreadyPresent);
 
         int reusedFiles =
             metadataResults.Count(item => item.AlreadyPresent)
-            + assetResults.Count(item => item.AlreadyPresent);
+            + assetResults.Count(item => item.AlreadyPresent)
+            + mappingResults.Count(item => item.AlreadyPresent);
 
         ResourceFileBackup[] backups =
             metadataResults
                 .Concat(assetResults)
+                .Concat(mappingResults)
                 .Where(item => item.BackupPath is not null)
                 .Select(item => new ResourceFileBackup(
                     item.FilePath,
@@ -165,7 +199,9 @@ public sealed class GameResourceCompleter
             downloadedFiles,
             reusedFiles)
         {
-            Backups = Array.AsReadOnly(backups)
+            Backups = Array.AsReadOnly(backups),
+            MappedFiles = mappingResults.Count,
+            CopiedFiles = mappingResults.Count(item => !item.AlreadyPresent)
         };
 
         Report(

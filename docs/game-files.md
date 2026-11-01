@@ -28,7 +28,8 @@ var result = await completer.CompleteAsync(
 | --- | --- |
 | `TotalFiles` | 本次处理的文件总数 |
 | `DownloadedFiles` | 新下载的文件数 |
-| `ReusedFiles` | 已有且检查通过的下载文件数 |
+| `ReusedFiles` | 已有且检查通过的文件数 |
+| `MappedFiles`、`CopiedFiles` | 旧版映射文件数，以及本次从本地对象复制的文件数 |
 | `VerifiedGeneratedFiles` | 加载器生成、且按本地说明检查通过的文件数 |
 | `RepairedFiles` | 本次替换并保留备份的坏文件数 |
 | `Backups` | 原文件和备份文件的路径 |
@@ -38,6 +39,8 @@ var result = await completer.CompleteAsync(
 ## 可选设置
 
 在构造时可设置 `maxConcurrency`（同时处理数，默认 4）、`replaceInvalidFiles`（默认 `true`）和 `targetArchitecture`（默认当前系统位数）。若选用不同位数的 Java，应为那个 Java 选择文件，而不是只看 Windows 位数。
+
+`GameDirectory` 默认使用所选版本目录；若启动配置指定了其他工作目录，在补全器和文件检查器中填写同一目录。
 
 设置 `Source` 可[选择下载源](download-sources.md)。取消方式见[通用说明](advanced.md)，完整声明见[接口参考](public-api.md#fmcoreinstaller)。
 

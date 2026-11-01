@@ -166,7 +166,8 @@ public sealed partial class FabricInstaller
             right.Remove(key);
         }
 
-        if (!JsonNode.DeepEquals(left, right))
+        if (!JsonNode.DeepEquals(left, right)
+            && !MinecraftVersionConverter.MatchesInstalledProfile(actual, expected))
         {
             throw new IOException(
                 "已有实例配置与所选 Fabric 配置不同，文件已保留；"

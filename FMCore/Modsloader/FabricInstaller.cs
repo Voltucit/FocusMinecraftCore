@@ -172,6 +172,10 @@ public sealed partial class FabricInstaller
                 progress.Download),
             cancellationToken).ConfigureAwait(false);
 
+        Report(FabricInstallStage.WritingProfile, "生成独立的完整版本配置与客户端……");
+        _ = await new MinecraftVersionConverter(VersionId, _minecraftRoot)
+            .MakeIndependentAsync(cancellationToken).ConfigureAwait(false);
+
         FabricInstallResult result = new(
             VersionId,
             _gameVersion,

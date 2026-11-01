@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Nodes;
+using System.Text.Json.Nodes;
 using FMCore.Installer;
 using FMCore.Versions;
 
@@ -8,7 +8,8 @@ internal sealed record AssetPaths(
     string AssetsRoot,
     string IndexId,
     string IndexFile,
-    string ObjectsDirectory);
+    string ObjectsDirectory,
+    string GameAssets);
 
 internal sealed record LoggingConfig(
     string FilePath,
@@ -18,7 +19,8 @@ internal static class LaunchResourceResolver
 {
     internal static AssetPaths ResolveAssets(
         MinecraftVersion version,
-        string minecraftRoot)
+        string minecraftRoot,
+        string? gameDirectory = null)
     {
         JsonObject declaration = ReadInheritedObject(
             version, minecraftRoot, "assetIndex")
@@ -44,10 +46,15 @@ internal static class LaunchResourceResolver
             throw new InvalidDataException(
                 "资源索引的 objects 必须是 JSON 对象。");
 
-        if (ReadFlag(index, "virtual")
-            || ReadFlag(index, "map_to_resources"))
-            throw new NotSupportedException(
-                "暂未支持 virtual 或 map_to_resources 资源映射。");
+        AssetLayout layout = AssetLayout.Read(index, minecraftRoot, id,
+            gameDirectory ?? version.Directory);
+
+        foreach (string directory in layout.MappingDirectories)
+        {
+            if (!Directory.Exists(directory))
+                throw new DirectoryNotFoundException(
+                    $"缺少旧版资源映射目录，请先补全游戏文件：{directory}");
+        }
 
         string objectsDirectory =
             ResolveAssetPath(assetsRoot, "objects");
@@ -61,7 +68,7 @@ internal static class LaunchResourceResolver
                 $"缺少资源对象目录：{objectsDirectory}");
 
         return new AssetPaths(
-            assetsRoot, id, indexFile, objectsDirectory);
+            assetsRoot, id, indexFile, objectsDirectory, layout.GameAssets);
     }
 
     internal static LoggingConfig? ResolveLogging(
@@ -190,16 +197,4 @@ internal static class LaunchResourceResolver
                 "资源索引 ID 和日志文件 ID 必须是单个名称。");
     }
 
-    private static bool ReadFlag(JsonObject data, string key)
-    {
-        if (!data.TryGetPropertyValue(key, out JsonNode? node))
-            return false;
-
-        if (node is JsonValue value
-            && value.TryGetValue<bool>(out bool result))
-            return result;
-
-        throw new InvalidDataException(
-            $"资源索引的 {key} 必须是布尔值。");
-    }
 }

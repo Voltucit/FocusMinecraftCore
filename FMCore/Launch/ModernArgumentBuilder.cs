@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -65,7 +65,7 @@ internal static class ModernArgumentBuilder
 
         AssetPaths assets =
             LaunchResourceResolver.ResolveAssets(
-                config.Version, minecraftRoot);
+                config.Version, minecraftRoot, config.GameDirectory);
 
         LoggingConfig? logging =
             LaunchResourceResolver.ResolveLogging(
@@ -105,6 +105,7 @@ internal static class ModernArgumentBuilder
                 ["auth_player_name"] = config.Account.Username,
                 ["auth_uuid"] = config.Account.Uuid.ToString("N"),
                 ["auth_access_token"] = config.Account.AccessToken,
+                ["auth_session"] = $"token:{config.Account.AccessToken}:{config.Account.Uuid:N}",
                 ["user_type"] = config.Account.UserType,
                 ["user_properties"] = "{}",
                 ["clientid"] = config.Account.ClientId,
@@ -114,6 +115,7 @@ internal static class ModernArgumentBuilder
                 ["version_type"] = versionType,
                 ["game_directory"] = config.GameDirectory,
                 ["assets_root"] = assets.AssetsRoot,
+                ["game_assets"] = assets.GameAssets,
                 ["assets_index_name"] = assets.IndexId,
 
                 ["natives_directory"] = nativePath,

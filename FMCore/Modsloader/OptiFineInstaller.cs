@@ -297,6 +297,10 @@ public sealed partial class OptiFineInstaller
                     cancellationToken).ConfigureAwait(false);
             }
 
+            Report(OptiFineInstallStage.WritingFiles, "生成独立的完整版本配置与客户端……");
+            _ = await new MinecraftVersionConverter(versionId, _root)
+                .MakeIndependentAsync(cancellationToken).ConfigureAwait(false);
+
             Report(OptiFineInstallStage.Completed, "OptiFine 客户端安装完成。");
 
             return new OptiFineInstallResult(

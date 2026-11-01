@@ -41,7 +41,10 @@ using FMCore.Launch;
 
 await new GameFileCompleter(
     config.GameCoreConfig.Version,
-    config.GameCoreConfig.Root).CompleteAsync();
+    config.GameCoreConfig.Root)
+{
+    GameDirectory = config.GameCoreConfig.GameDirectory
+}.CompleteAsync();
 
 var launcher = new MinecraftLauncher(config);
 int exitCode = await launcher.LaunchAsync();
@@ -64,3 +67,16 @@ WPF 的按钮处理写法见[游戏启动](../docs/launch.md#接到启动按钮)
 ## 新版参数配旧式原生库的游戏
 
 1.16.5 这类游戏仍使用相同的 `MinecraftLauncher(config).LaunchAsync()` 调用，不需要启动器作者手动解压。所选 Java 仍需适用于该游戏和 Mod。已经用 Java 8 启动新装的 1.16.5＋Forge 36.2.34＋OptiFine G8，确认进入主菜单。OptiFine 在这个组合中作为模组放在实例的 `mods` 目录，文件放入由启动器安排。
+
+## 让已有加载器版本独立
+
+新安装的已支持加载器自动保存完整配置和独立客户端。已有版本在原父版本仍在时执行一次：
+
+```csharp
+using FMCore.Versions;
+
+var independentVersion = await new MinecraftVersionConverter(
+    "1.21.10-Fabric-0.17.3", ".minecraft").MakeIndependentAsync();
+```
+
+成功后不再依赖普通版目录。公共 `assets`、`libraries` 继续共享，各版本的存档、Mod 和设置默认留在自己的版本目录。

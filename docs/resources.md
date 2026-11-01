@@ -26,8 +26,10 @@ var result = await completer.CompleteAsync(
 
 ## 保存位置和范围
 
-资源列表放在 `assets/indexes`，资源内容放在 `assets/objects`，日志配置放在 `assets/log_configs`。根目录由调用方决定，不额外生成测试目录。
+资源列表放在 `assets/indexes`，资源内容放在 `assets/objects`，日志配置放在 `assets/log_configs`。旧版按索引生成 `assets/virtual/<索引名>` 或游戏工作目录下的 `resources`，直接从本地对象复制，不重复下载。
 
-不处理 Mod、玩家设置、存档或整合包。暂不支持 `virtual`、`map_to_resources` 和只有 `assets` 字段的旧资源存放方式。
+`GameDirectory` 默认是所选版本目录。启动时指定其他工作目录的，补全器和文件检查器也设置相同的 `GameDirectory`。`MappedFiles` 是映射文件数，`CopiedFiles` 是本次复制数；下载数只统计实际下载。
+
+不处理 Mod、玩家设置、存档或整合包。支持 `virtual` 和 `map_to_resources` 资源映射；仅含 `assets`、没有 `assetIndex` 的旧配置仍不支持。
 
 返回字段、取消和错误类型见[接口参考](public-api.md#fmcoreinstaller)。一般启动器无需自己读取资源列表或拼下载请求。

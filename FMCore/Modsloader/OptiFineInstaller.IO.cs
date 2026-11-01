@@ -1,4 +1,4 @@
-﻿using System.IO.Compression;
+using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text.Json.Nodes;
 using FMCore.Installer;
@@ -184,7 +184,8 @@ public sealed partial class OptiFineInstaller
             right.Remove(key);
         }
 
-        if (!JsonNode.DeepEquals(left, right))
+        if (!JsonNode.DeepEquals(left, right)
+            && !MinecraftVersionConverter.MatchesInstalledProfile(actual, expected))
             throw new IOException(
                 "已有实例配置与本次 OptiFine 不同，文件已保留；请换一个实例 ID。");
     }

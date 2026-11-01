@@ -1,4 +1,4 @@
-﻿using System.IO.Compression;
+using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Text.Json.Nodes;
 using FMCore.Installer;
@@ -91,7 +91,8 @@ public sealed partial class ForgeInstaller
             right.Remove(key);
         }
 
-        if (!JsonNode.DeepEquals(left, right))
+        if (!JsonNode.DeepEquals(left, right)
+            && !MinecraftVersionConverter.MatchesInstalledProfile(actual, expected))
             throw new IOException(
                 "已有 Forge 实例配置不同，文件已保留；请换一个 versionId。");
     }
