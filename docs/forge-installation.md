@@ -16,7 +16,7 @@ var result = await installer.InstallAsync();
 
 `javaPath` 是启动器选好的 Java 路径。安装需要运行 Java 补丁工具来生成游戏文件，可以使用启动器已有的 Java 设置，不必让用户再选一次。
 
-原版缺失时会准备原版，再安装 Forge 并补齐所需文件。安装不启动游戏。
+原版缺失时会准备原版，再安装 Forge 并补齐所需文件。安装不启动游戏。`install_profile.json` 的 `path` 缺失或为 `null` 时，会用目标版本号和 Forge universal 库核对安装包。
 
 ## 查询版本
 

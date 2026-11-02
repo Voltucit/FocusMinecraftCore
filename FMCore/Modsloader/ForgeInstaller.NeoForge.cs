@@ -1,4 +1,4 @@
-﻿using System.IO.Compression;
+using System.IO.Compression;
 using System.Text.Json.Nodes;
 using FMCore.Installer;
 
@@ -28,7 +28,9 @@ public sealed partial class ForgeInstaller
 
         _isNeoForge = isNeoForge;
         _gameVersion = gameVersion;
-        _forgeVersion = loaderVersion;
+        _forgeVersion = isNeoForge && gameVersion == "1.20.1"
+            && loaderVersion.StartsWith(gameVersion + "-", StringComparison.Ordinal)
+                ? loaderVersion[(gameVersion.Length + 1)..] : loaderVersion;
         _root = PathSafety.RequireDirectoryPath(minecraftRoot);
         _javaPath = PathSafety.Resolve(javaPath);
         _maxConcurrency = maxConcurrency;
@@ -38,7 +40,7 @@ public sealed partial class ForgeInstaller
             throw new NotSupportedException("Minecraft 根目录不能包含分号。");
 
         VersionId = versionId ?? (isNeoForge
-            ? $"{gameVersion}-NeoForge-{loaderVersion}"
+            ? $"{gameVersion}-NeoForge-{_forgeVersion}"
             : $"{gameVersion}-forge-{loaderVersion}");
 
         ValidateName(VersionId);
@@ -47,23 +49,52 @@ public sealed partial class ForgeInstaller
             throw new ArgumentException("加载器实例 ID 不能与原版相同。");
     }
 
-    private string PackageCoordinate => _isNeoForge
-        ? $"net.neoforged:neoforge:{_forgeVersion}"
-        : $"net.minecraftforge:forge:{_gameVersion}-{_forgeVersion}";
+    private bool IsLegacyNeoForge => _isNeoForge && _gameVersion == "1.20.1";
 
-    private void ValidatePackageIdentity(JsonObject install)
+    internal string MavenVersion => !_isNeoForge || IsLegacyNeoForge
+        ? $"{_gameVersion}-{_forgeVersion}" : _forgeVersion;
+
+    internal string ArtifactName => !_isNeoForge || IsLegacyNeoForge ? "forge" : "neoforge";
+
+    internal string MavenRoot => !_isNeoForge ? ForgeMaven
+        : IsLegacyNeoForge ? NeoForgeLegacyMaven : NeoForgeMaven;
+
+    internal string PackageCoordinate => !_isNeoForge
+        ? $"net.minecraftforge:forge:{MavenVersion}"
+        : $"net.neoforged:{ArtifactName}:{MavenVersion}";
+
+    internal void ValidatePackageIdentity(JsonObject install)
     {
         if (_isNeoForge)
         {
-            if (ReadText(install, "version") != $"neoforge-{_forgeVersion}"
+            string expectedVersion = IsLegacyNeoForge
+                ? $"{_gameVersion}-forge-{_forgeVersion}" : $"neoforge-{_forgeVersion}";
+            if (ReadText(install, "version") != expectedVersion
                 || install["libraries"] is not JsonArray libraries
                 || !libraries.Any(node => node is JsonObject library
-                    && library["name"]?.GetValue<string>()
-                        == PackageCoordinate + ":universal"))
+                    && library["name"] is JsonValue name
+                    && name.TryGetValue<string>(out string? value)
+                    && value == PackageCoordinate + ":universal"))
             {
                 throw new InvalidDataException("安装包不是所选 NeoForge 版本。");
             }
 
+            return;
+        }
+
+        // 一些正式 Forge 安装包没有 path，或将其写为 null。
+        // 这种格式仍声明了目标版本及 Forge universal 库，用它们核对身份。
+        if (install["path"] is null)
+        {
+            if (ReadText(install, "version") != $"{_gameVersion}-forge-{_forgeVersion}"
+                || install["libraries"] is not JsonArray forgeLibraries
+                || !forgeLibraries.Any(node => node is JsonObject library
+                    && library["name"] is JsonValue name
+                    && name.TryGetValue<string>(out string? value)
+                    && value == PackageCoordinate + ":universal"))
+            {
+                throw new InvalidDataException("安装包不是所选 Forge 版本。");
+            }
             return;
         }
 

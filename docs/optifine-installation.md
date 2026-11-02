@@ -57,6 +57,8 @@ var result = await installer.InstallAsync(
 
 在线服务不提供预期 SHA-1 和完整大小说明时，只能限制安装包大小、检查包内容与版本；不能说成已经按官方校验值验证来源。安装后的生成文件检查也不能代替来源检查。
 
+支持原版的新版 `arguments` 和旧式 `minecraftArguments` 参数格式。旧版配置会保留原有参数并追加 OptiFine 启动入口，安装结果仍包含完整独立配置和客户端。
+
 当前面向 Windows，已实际运行过 `1.21.10 / HD_U_J7_pre11` 的本地和在线安装结果。这里只安装独立 OptiFine 版本，不负责将其与 Forge 等混合安装，也不安装光影。已有不同配置会保留并报错；生成文件损坏时先备份移走再安装。
 
 [调用示例](../examples/optifine-installation.md) · [游戏启动](launch.md)

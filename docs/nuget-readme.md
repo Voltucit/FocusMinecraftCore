@@ -1,7 +1,7 @@
 # FocusMinecraftCore
 
 
-适用于 2.0.4，使用 .NET 10，当前安装和启动面向 Windows。包名是 `FocusMinecraftCore`，代码中使用 `FMCore`。2.0 与 1.x 的调用方式不同。
+适用于 2.0.5，使用 .NET 10，当前安装和启动面向 Windows。包名是 `FocusMinecraftCore`，代码中使用 `FMCore`。2.0 与 1.x 的调用方式不同。
 
 ## 安装原版
 

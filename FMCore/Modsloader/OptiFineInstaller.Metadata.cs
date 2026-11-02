@@ -1,11 +1,42 @@
 using System.IO.Compression;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Text.Json.Nodes;
+using FMCore.Versions;
 
 namespace FMCore.Modsloader;
 
 public sealed partial class OptiFineInstaller
 {
+    internal static JsonObject CreateProfile(
+        JsonObject parent, string versionId, string gameVersion)
+    {
+        JsonObject profile = new()
+        {
+            ["id"] = versionId,
+            ["inheritsFrom"] = gameVersion,
+            ["type"] = "release",
+            ["mainClass"] = "net.minecraft.launchwrapper.Launch"
+        };
+        if (parent.TryGetPropertyValue("arguments", out JsonNode? arguments))
+        {
+            if (arguments is not JsonObject)
+                throw new InvalidDataException("原版 arguments 必须是对象。");
+            profile["arguments"] = new JsonObject
+            {
+                ["game"] = new JsonArray("--tweakClass", "optifine.OptiFineTweaker")
+            };
+        }
+        else
+        {
+            string template = MinecraftVersionReader.ReadRequiredString(parent,
+                "minecraftArguments", "原版缺少有效的游戏启动参数。");
+            profile["minecraftArguments"] = template
+                + " --tweakClass optifine.OptiFineTweaker";
+        }
+        return profile;
+    }
+
     internal static async Task<(string GameVersion, string Edition)> ReadInstallerVersionAsync(
         string path,
         CancellationToken cancellationToken)

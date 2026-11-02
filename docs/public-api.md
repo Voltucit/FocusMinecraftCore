@@ -493,7 +493,7 @@ public sealed record ForgeInstallResult(
 
 ### NeoForgeInstaller
 
-填写原版版本、NeoForge 版本、根目录和 Java 路径。可选参数与 Forge 类似，但公开结果和进度使用 NeoForge 自己的类型。
+填写原版版本、NeoForge 版本、根目录和 Java 路径。1.20.1 使用旧分支版本号，例如 `47.1.106`（也接受 `1.20.1-47.1.106`）；查询和安装自动选择对应仓库。可选参数与 Forge 类似，但公开结果和进度使用 NeoForge 自己的类型。
 
 部分版本没有给补丁生成文件提供预期校验值，此时只能检查生成 JAR 的结构，不能说成已按官方校验值验证。下载、补丁运行、取消等失败会报告实际原因，见[NeoForge 安装](neoforge-installation.md)。
 
@@ -650,7 +650,7 @@ public sealed record OptiFineInstallVersion(
 public sealed class ModrinthClient
 
 public ModrinthClient(
-    string userAgent = "FocusMinecraftCore/2.0.1 (+https://github.com/Voltucit/FocusMinecraftCore)")
+    string userAgent = "FocusMinecraftCore/2.0.5 (+https://github.com/Voltucit/FocusMinecraftCore)")
 
 public DownloadSource Source { get; init; } = DownloadSource.Official;
 

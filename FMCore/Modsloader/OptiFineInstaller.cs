@@ -204,8 +204,7 @@ public sealed partial class OptiFineInstaller
         JsonObject parentJson =
             MinecraftVersionReader.ReadVersionJson(parent.Directory);
 
-        if (parentJson["arguments"] is not JsonObject)
-            throw new NotSupportedException("本入口先支持新版 arguments 格式。");
+        JsonObject profile = CreateProfile(parentJson, versionId, gameVersion);
 
         if (parentJson["javaVersion"] is JsonNode requiredNode)
         {
@@ -262,20 +261,9 @@ public sealed partial class OptiFineInstaller
                 temporary, 64 * 1024 * 1024,
                 cancellationToken).ConfigureAwait(false);
 
-            JsonObject profile = new()
-            {
-                ["id"] = versionId,
-                ["inheritsFrom"] = gameVersion,
-                ["type"] = "release",
-                ["mainClass"] = "net.minecraft.launchwrapper.Launch",
-                ["arguments"] = new JsonObject
-                {
-                    ["game"] = new JsonArray("--tweakClass", "optifine.OptiFineTweaker")
-                },
-                ["libraries"] = new JsonArray(
-                    LocalLibrary(coordinate, patchedBytes),
-                    LocalLibrary(wrapperCoordinate, wrapper))
-            };
+            profile["libraries"] = new JsonArray(
+                LocalLibrary(coordinate, patchedBytes),
+                LocalLibrary(wrapperCoordinate, wrapper));
 
             CheckProfile(directory, jsonPath, profile);
 

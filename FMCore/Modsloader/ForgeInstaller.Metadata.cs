@@ -18,6 +18,9 @@ public sealed partial class ForgeInstaller
     private const string NeoForgeMaven =
         "https://maven.neoforged.net/releases/net/neoforged/neoforge/";
 
+    private const string NeoForgeLegacyMaven =
+        "https://maven.neoforged.net/releases/net/neoforged/forge/";
+
     private static readonly HttpClient MetadataClient = new(
         new HttpClientHandler { AllowAutoRedirect = true })
     {
@@ -58,6 +61,10 @@ public sealed partial class ForgeInstaller
                 "NeoForge 版本查询需要正式版编号，例如 1.21.10 或 26.1。",
                 nameof(gameVersion));
         }
+
+        if (gameVersion == "1.20.1")
+            return ReadVersionListAsync(NeoForgeLegacyMaven, gameVersion + "-",
+                removePrefix: true, source, cancellationToken);
 
         int patch = minecraft.Build < 0 ? 0 : minecraft.Build;
         string prefix = minecraft.Major == 1
@@ -115,12 +122,9 @@ public sealed partial class ForgeInstaller
     private async Task<DownloadRequest> ReadInstallerRequestAsync(
         CancellationToken cancellationToken)
     {
-        string version = _isNeoForge
-            ? _forgeVersion
-            : _gameVersion + "-" + _forgeVersion;
-
-        string artifact = _isNeoForge ? "neoforge" : "forge";
-        string maven = _isNeoForge ? NeoForgeMaven : ForgeMaven;
+        string version = MavenVersion;
+        string artifact = ArtifactName;
+        string maven = MavenRoot;
 
         string url = maven + Uri.EscapeDataString(version)
                            + "/" + artifact + "-" + Uri.EscapeDataString(version)
