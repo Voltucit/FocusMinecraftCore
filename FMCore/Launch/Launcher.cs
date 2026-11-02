@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Text;
 using FMCore.Versions;
 using FMCore.Accounts;
@@ -96,6 +96,9 @@ private static async Task<int> RunCoreAsync(
 
     ProcessStartInfo startInfo;
 
+    // 本次启动使用的原生库目录，进程退出后删除，避免每次启动残留一份 DLL。
+    string? nativesWorkingDirectory = null;
+
     if (modern)
     {
         string nativesDirectory = Path.Combine(
@@ -105,6 +108,8 @@ private static async Task<int> RunCoreAsync(
         if (Path.Exists(nativesDirectory))
             throw new IOException(
                 "本次原生库工作目录已经存在。");
+
+        nativesWorkingDirectory = nativesDirectory;
 
         // 先完成文件检查和参数构造，再创建输出目录。
         startInfo = ModernArgumentBuilder.Build(
@@ -152,6 +157,8 @@ private static async Task<int> RunCoreAsync(
                 minecraftRoot,
                 config.Java,
                 cancellationToken).ConfigureAwait(false);
+
+        nativesWorkingDirectory = nativesDirectory;
 
         startInfo = LegacyArgumentBuilder.Build(
             config,
@@ -203,12 +210,22 @@ private static async Task<int> RunCoreAsync(
     }
     Directory.CreateDirectory(startInfo.WorkingDirectory);
 
-    int exitCode = await RunProcessAsync(
-        startInfo,
-        onOutput,
-        onError,
-        cancellationToken,
-        onProgress).ConfigureAwait(false);
+    int exitCode;
+
+    try
+    {
+        exitCode = await RunProcessAsync(
+            startInfo,
+            onOutput,
+            onError,
+            cancellationToken,
+            onProgress).ConfigureAwait(false);
+    }
+    finally
+    {
+        // 游戏退出（或被取消）后删除本次原生库目录，避免每次启动残留一份 DLL。
+        NativeExtractor.TryDeleteWorkingDirectory(nativesWorkingDirectory);
+    }
 
     onProgress?.Invoke(new LaunchProgress(
         LaunchStage.GameExited,

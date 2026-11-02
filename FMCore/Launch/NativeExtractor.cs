@@ -1,4 +1,4 @@
-﻿using System.IO.Compression;
+using System.IO.Compression;
 using System.Text.Json.Nodes;
 using FMCore.Installer;
 using FMCore.Java;
@@ -513,6 +513,33 @@ internal static class NativeExtractor
         }
 
         return errors;
+    }
+
+    /// <summary>
+    /// 启动结束后删除本次使用的原生库工作目录。
+    /// 只处理以 natives- 命名的目录；游戏仍占用文件时保留，不抛异常。
+    /// </summary>
+    internal static void TryDeleteWorkingDirectory(string? directory)
+    {
+        if (string.IsNullOrWhiteSpace(directory))
+            return;
+
+        if (!Path.GetFileName(directory).StartsWith(
+                "natives-", StringComparison.Ordinal))
+            return;
+
+        try
+        {
+            if (Directory.Exists(directory))
+                Directory.Delete(directory, recursive: true);
+        }
+        catch (IOException)
+        {
+            // 进程仍在占用 DLL 或目录被其他程序打开，留给后续启动处理。
+        }
+        catch (UnauthorizedAccessException)
+        {
+        }
     }
 
     private static uint[] CreateCrcTable()

@@ -105,7 +105,7 @@ Microsoft 登录返回的账号直接填入 `Account`，见 [Microsoft 登录](m
 - 已补齐新版参数配旧式原生库的启动处理。已用 Windows x64 Java 8 新装并启动 1.16.5＋Forge 36.2.34＋OptiFine G8，确认进入主菜单。
 - 支持 `virtual` 和 `map_to_resources` 资源映射；仅含 `assets`、没有 `assetIndex` 的旧配置仍不支持。
 - 旧式启动参数暂不支持用双引号把多个词拼成一个参数。
-- 原生库会解压到所选版本目录中的独立 `natives` 文件夹，目前用完后暂时保留。解压会检查文件路径和压缩内容。
+- 原生库会解压到所选版本目录中的独立 `natives-*` 文件夹，游戏退出（或被取消）后自动删除；文件仍被游戏占用时保留，不影响启动结果。解压会检查文件路径和压缩内容。
 - 当前没有真实 x86、ARM64 游戏运行结果。
 
 缺文件、Java 不适用、账号过期或设置不正确时，会返回对应错误。完整参数和错误类型见[接口参考](public-api.md#fmcorelaunch)。原来的 `PreparedLaunchConfig` 和 `Launcher.RunAsync` 留给需要自行准备启动资料的用法，普通启动直接使用本页写法。
