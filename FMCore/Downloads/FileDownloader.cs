@@ -1,4 +1,4 @@
-﻿using System.Net.Http;
+using System.Net.Http;
 using System.Security.Cryptography;
 using FMCore.Installer;
 
@@ -11,6 +11,18 @@ public static partial class FileDownloader
     {
         Timeout = System.Threading.Timeout.InfiniteTimeSpan
     };
+
+    private static string? _userAgent;
+
+    /// <summary>
+    /// 所有下载请求统一携带的 User-Agent；留空则不发送（默认）。
+    /// 由使用方在开始下载前设置一次，例如镜像站要求标识启动器名称与版本时。
+    /// </summary>
+    public static string? UserAgent
+    {
+        get => _userAgent;
+        set => _userAgent = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
 
     private static async Task<DownloadResult> DownloadOnceAsync(
         DownloadRequest request,
@@ -67,8 +79,13 @@ public static partial class FileDownloader
             onProgress?.Invoke(new DownloadProgress(
                 filePath, 0, request.Size));
 
-            using HttpResponseMessage response = await Client.GetAsync(
-                    url,
+            using HttpRequestMessage message = new(HttpMethod.Get, url);
+
+            if (_userAgent is { } agent)
+                message.Headers.TryAddWithoutValidation("User-Agent", agent);
+
+            using HttpResponseMessage response = await Client.SendAsync(
+                    message,
                     HttpCompletionOption.ResponseHeadersRead,
                     token).ConfigureAwait(false);
 

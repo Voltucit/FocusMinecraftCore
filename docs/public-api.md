@@ -2,7 +2,7 @@
 
 通常先看[文档目录](README.md)中的最短示例。本页保留实际类型、方法和完整参数，方便需要调整细节时查找；代码里的英文名称不能替换成中文。
 
-适用于准备发布的 `2.0.1`，使用 .NET 10 / C# 14，代码名称以 `FMCore` 开头。包名是 `FocusMinecraftCore`。
+适用于准备发布的 `2.0.7`，使用 .NET 10 / C# 14，代码名称以 `FMCore` 开头。包名是 `FocusMinecraftCore`。
 
 | 要查什么 | 位置 |
 | --- | --- |
@@ -650,7 +650,7 @@ public sealed record OptiFineInstallVersion(
 public sealed class ModrinthClient
 
 public ModrinthClient(
-    string userAgent = "FocusMinecraftCore/2.0.5 (+https://github.com/Voltucit/FocusMinecraftCore)")
+    string userAgent = "FocusMinecraftCore/2.0.7 (+https://github.com/Voltucit/FocusMinecraftCore)")
 
 public DownloadSource Source { get; init; } = DownloadSource.Official;
 
@@ -810,11 +810,15 @@ public sealed class DownloadRequest
 ```text
 public static partial class FileDownloader
 
+public static string? UserAgent { get; set; }
+
 public static Task<DownloadResult> DownloadAsync(
     DownloadRequest request,
     Action<DownloadProgress>? onProgress = null,
     CancellationToken cancellationToken = default)
 ```
+
+`UserAgent` 默认是 `null`，表示不发送请求头；设置后对之后所有单个和批量下载生效，可传 `null` 或空白恢复默认。镜像站要求标识调用方名称与版本时在开始下载前设置一次。
 
 ### DownloadProgress 与 DownloadResult
 

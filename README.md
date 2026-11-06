@@ -37,7 +37,7 @@ dotnet reference add ../FocusMinecraftCore/FMCore/FMCore.csproj
 你的项目需要使用 `net10.0` 或兼容的 Windows 目标。已有本地包的用法见[打包说明](docs/packaging.md)。正式包发布后，再使用下面的 NuGet 命令：
 
 ```powershell
-dotnet package add FocusMinecraftCore --version 2.0.5
+dotnet package add FocusMinecraftCore --version 2.0.7
 ```
 
 ## 使用示例
