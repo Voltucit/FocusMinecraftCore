@@ -17,6 +17,9 @@ public sealed partial class OptiFineOnlineInstaller
     public string VersionId { get; }
     public DownloadSource Source { get; init; } = DownloadSource.BmclApi;
 
+    /// <summary>安装器本次创建的原版父版本在独立化后是否删除。</summary>
+    public bool RemoveCreatedBaseVersion { get; init; }
+
     public OptiFineOnlineInstaller(
         string gameVersion,
         string edition,
@@ -103,7 +106,8 @@ public sealed partial class OptiFineOnlineInstaller
             packagePath, _root, _javaPath, VersionId,
             _maxConcurrency, _processorMemoryMb)
         {
-            Source = this.Source
+            Source = this.Source,
+            RemoveCreatedBaseVersion = RemoveCreatedBaseVersion
         };
 
         return await installer.InstallAsync(

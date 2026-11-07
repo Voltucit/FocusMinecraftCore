@@ -7,6 +7,10 @@ public sealed class NeoForgeInstaller
     private readonly ForgeInstaller _installer;
 
     public string VersionId => _installer.VersionId;
+
+    /// <summary>安装器本次创建的原版父版本在独立化后是否删除。</summary>
+    public bool RemoveCreatedBaseVersion { get; init; }
+
     public DownloadSource Source { get; init; } = DownloadSource.Official;
 
     public NeoForgeInstaller(
@@ -40,6 +44,8 @@ public sealed class NeoForgeInstaller
         Action<NeoForgeInstallProgress>? onProgress = null,
         CancellationToken cancellationToken = default)
     {
+        _installer.RemoveCreatedBaseVersion = RemoveCreatedBaseVersion;
+
         ForgeInstallResult result = await _installer.InstallWithSourceAsync(
             Source,
             onProgress is null ? null : progress =>

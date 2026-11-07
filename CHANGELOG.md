@@ -1,5 +1,9 @@
 # 变更记录
 
+## 2.0.8
+
+- Fabric、Forge、NeoForge 和 OptiFine 安装器新增 `RemoveCreatedBaseVersion`：开启后，本次自动补装的原版父版本在生成独立实例后会删除；已有原版、仍被其他版本继承或包含用户数据时保留。默认关闭，保持原有行为。
+
 ## 2.0.7
 
 - 新增 `FileDownloader.UserAgent`：可为所有下载请求统一设置 User-Agent，默认空字符串行为与之前一致，用于镜像站要求标识调用方名称与版本的场景。

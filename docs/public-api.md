@@ -392,6 +392,7 @@ public FabricInstaller(
     Architecture? targetArchitecture = null)
 
 public string VersionId { get; }
+public bool RemoveCreatedBaseVersion { get; init; }
 public DownloadSource Source { get; init; } = DownloadSource.Official;
 
 public static Task<IReadOnlyList<FabricLoaderVersion>> GetLoaderVersionsAsync(
@@ -450,6 +451,7 @@ public ForgeInstaller(
     int processorMemoryMb = 2048)
 
 public string VersionId { get; }
+public bool RemoveCreatedBaseVersion { get; set; }
 public DownloadSource Source { get; init; } = DownloadSource.Official;
 
 public static Task<IReadOnlyList<string>> GetVersionsAsync(
@@ -510,6 +512,7 @@ public NeoForgeInstaller(
     int processorMemoryMb = 2048)
 
 public string VersionId { get; }
+public bool RemoveCreatedBaseVersion { get; init; }
 public DownloadSource Source { get; init; } = DownloadSource.Official;
 
 public static Task<IReadOnlyList<string>> GetVersionsAsync(
@@ -570,6 +573,7 @@ public OptiFineInstaller(
     int maxConcurrency = 4,
     int processorMemoryMb = 2048)
 
+public bool RemoveCreatedBaseVersion { get; init; }
 public DownloadSource Source { get; init; } = DownloadSource.Official;
 
 public sealed partial class OptiFineOnlineInstaller
@@ -584,6 +588,7 @@ public OptiFineOnlineInstaller(
     int processorMemoryMb = 2048)
 
 public string VersionId { get; }
+public bool RemoveCreatedBaseVersion { get; init; }
 public DownloadSource Source { get; init; } = DownloadSource.BmclApi;
 
 public static Task<IReadOnlyList<OptiFineInstallVersion>> GetVersionsAsync(

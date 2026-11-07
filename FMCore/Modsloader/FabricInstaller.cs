@@ -17,6 +17,9 @@ public sealed partial class FabricInstaller
 
     public string VersionId { get; }
 
+    /// <summary>安装器本次创建的原版父版本在独立化后是否删除。</summary>
+    public bool RemoveCreatedBaseVersion { get; init; }
+
     public DownloadSource Source { get; init; } = DownloadSource.Official;
 
     public FabricInstaller(
@@ -109,6 +112,8 @@ public sealed partial class FabricInstaller
         if (parents.Length == 1 && parents[0].InheritsFrom is not null)
             throw new NotSupportedException("Fabric 安装需要原版游戏作为父版本。");
 
+        bool baseExisted = parents.Length == 1;
+
         MinecraftVersion[] targets = installed
             .Where(item => item.Id == VersionId).ToArray();
 
@@ -175,6 +180,13 @@ public sealed partial class FabricInstaller
         Report(FabricInstallStage.WritingProfile, "生成独立的完整版本配置与客户端……");
         _ = await new MinecraftVersionConverter(VersionId, _minecraftRoot)
             .MakeIndependentAsync(cancellationToken).ConfigureAwait(false);
+
+        if (RemoveCreatedBaseVersion && !baseExisted)
+        {
+            await BaseVersionCleanup.RemoveIfUnusedAsync(
+                _minecraftRoot, _gameVersion, cancellationToken)
+                .ConfigureAwait(false);
+        }
 
         FabricInstallResult result = new(
             VersionId,

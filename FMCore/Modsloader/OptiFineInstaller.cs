@@ -26,6 +26,9 @@ public sealed partial class OptiFineInstaller
 
     public DownloadSource Source { get; init; } = DownloadSource.Official;
 
+    /// <summary>安装器本次创建的原版父版本在独立化后是否删除。</summary>
+    public bool RemoveCreatedBaseVersion { get; init; }
+
     public OptiFineInstaller(
         string installerJarPath,
         string minecraftRoot,
@@ -146,6 +149,8 @@ public sealed partial class OptiFineInstaller
 
         if (parents.Length == 1 && parents[0].InheritsFrom is not null)
             throw new NotSupportedException("OptiFine 需要原版作为父版本。");
+
+        bool baseExisted = parents.Length == 1;
 
         var targets = installed.Where(item => item.Id == versionId).ToArray();
 
@@ -288,6 +293,13 @@ public sealed partial class OptiFineInstaller
             Report(OptiFineInstallStage.WritingFiles, "生成独立的完整版本配置与客户端……");
             _ = await new MinecraftVersionConverter(versionId, _root)
                 .MakeIndependentAsync(cancellationToken).ConfigureAwait(false);
+
+            if (RemoveCreatedBaseVersion && !baseExisted)
+            {
+                await BaseVersionCleanup.RemoveIfUnusedAsync(
+                    _root, gameVersion, cancellationToken)
+                    .ConfigureAwait(false);
+            }
 
             Report(OptiFineInstallStage.Completed, "OptiFine 客户端安装完成。");
 
