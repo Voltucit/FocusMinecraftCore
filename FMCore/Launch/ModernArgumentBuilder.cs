@@ -168,18 +168,28 @@ internal static class ModernArgumentBuilder
         foreach (string template in templates.Jvm)
             info.ArgumentList.Add(Expand(template, values));
 
-        // 26.x 的默认用户参数不能覆盖调用方明确指定的设置：
-        // 内存由 MaxMemoryMb 决定，其余同名参数以调用方的 JvmArguments 为准。
+        // 默认值按选项名称补缺。手动指定 GC 时，不能再叠加版本默认的另一种 GC。
+        HashSet<string> configuredOptions = config.JvmArguments
+            .Concat(info.ArgumentList)
+            .Select(GetJvmOptionName)
+            .ToHashSet(StringComparer.Ordinal);
+        bool customCollector = config.JvmArguments.Any(argument =>
+            argument.StartsWith("-XX:+", StringComparison.Ordinal)
+            && IsCollectorOption(GetJvmOptionName(argument)));
+        bool customG1 = config.JvmArguments.Contains(
+            "-XX:+UseG1GC", StringComparer.Ordinal);
+
         foreach (string template in templates.UserJvm)
         {
+            string option = GetJvmOptionName(template);
             if (IsMemoryOption(template)
-                || config.JvmArguments.Contains(template, StringComparer.Ordinal))
+                || configuredOptions.Contains(option)
+                || customCollector && (IsCollectorOption(option)
+                    || !customG1 && option.StartsWith("-XX:G1", StringComparison.Ordinal)))
                 continue;
 
             string expanded = Expand(template, values);
-
-            if (config.JvmArguments.Contains(expanded, StringComparer.Ordinal)
-                || info.ArgumentList.Contains(expanded))
+            if (!configuredOptions.Add(GetJvmOptionName(expanded)))
                 continue;
 
             info.ArgumentList.Add(expanded);
@@ -206,6 +216,33 @@ internal static class ModernArgumentBuilder
 
         return info;
     }
+
+    // 开关的正反值、同名参数的不同取值，都属于同一个选项。
+    private static string GetJvmOptionName(string argument)
+    {
+        if (argument.StartsWith("-XX:", StringComparison.Ordinal))
+        {
+            string name = argument[4..];
+            if (name.StartsWith('+') || name.StartsWith('-'))
+                name = name[1..];
+            int separator = name.IndexOf('=');
+            return "-XX:" + (separator < 0 ? name : name[..separator]);
+        }
+
+        if (argument.StartsWith("-D", StringComparison.Ordinal)
+            || argument.StartsWith("--", StringComparison.Ordinal))
+        {
+            int separator = argument.IndexOf('=');
+            return separator < 0 ? argument : argument[..separator];
+        }
+
+        return argument;
+    }
+
+    private static bool IsCollectorOption(string option) => option is
+        "-XX:UseG1GC" or "-XX:UseZGC" or "-XX:UseParallelGC"
+        or "-XX:UseSerialGC" or "-XX:UseShenandoahGC"
+        or "-XX:UseConcMarkSweepGC" or "-XX:UseEpsilonGC";
 
     // 内存由调用方的 MaxMemoryMb 决定，默认用户参数里的内存项一律忽略。
     private static bool IsMemoryOption(string template) =>

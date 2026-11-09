@@ -87,6 +87,14 @@ LaunchButton.Click += async (_, _) =>
 
 Microsoft 登录返回的账号直接填入 `Account`，见 [Microsoft 登录](microsoft-login.md)。外置账号还需设置 `AuthlibInjectorPath`，见[外置验证](yggdrasil-login.md)。
 
+## 自动选择或手动指定 GC
+
+自动模式不需要向 `JvmArguments` 添加 GC 选择参数。游戏提供了默认值时使用它；没有提供时，由 Java 自己选择。启动器不要把“自动”固定转换成 G1GC，否则会覆盖游戏的默认选择。
+
+用户手动选择 G1GC 时，可以设置 `JvmArguments = ["-XX:+UseG1GC"]`。FMCore 会忽略版本默认的其他 GC，避免同时启用 G1GC 和 ZGC。手动改用其他 GC 时，也不会追加版本默认的 G1 专用设置。
+
+默认参数按名称补缺。例如手动填写 `-XX:MaxGCPauseMillis=100` 或 `-XX:-AlwaysPreTouch` 后，版本默认的另一取值不会再追加。最大内存仍由 `MaxMemoryMb` 决定；手动填写的参数需要适用于所选 Java。
+
 ## 安装加载器后启动
 
 把安装结果中的 `VersionId` 和 `MinecraftRoot` 分别填入 `GameCoreConfig.Version` 和 `Root`。Fabric、Forge、NeoForge、OptiFine 都沿用上面的启动方式，不需要另一套启动方法。
