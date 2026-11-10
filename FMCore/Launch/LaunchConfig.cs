@@ -1,4 +1,4 @@
-﻿using FMCore.Accounts;
+using FMCore.Accounts;
 
 namespace FMCore.Launch;
 
@@ -13,6 +13,12 @@ public sealed class LaunchConfig
 
 
     public GameWindowConfig? GameWindowConfig { get; init; }
+
+    /// <summary>版本 JSON 中非标准占位符的可选覆盖；标准占位符不会被覆盖。</summary>
+    public IReadOnlyDictionary<string, string>? PlaceholderOverrides { get; init; }
+
+    /// <summary>遇到未覆盖的占位符时回调名称；启动器可据此记录并在失败时提示用户。</summary>
+    public Action<string>? UnknownPlaceholderReporter { get; init; }
 }
 
 public sealed class GameCoreConfig

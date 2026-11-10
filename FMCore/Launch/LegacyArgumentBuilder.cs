@@ -211,6 +211,9 @@ internal static class LegacyArgumentBuilder
                 ["assets_index_name"] = assets.IndexId
             };
 
+        foreach (var pair in config.PlaceholderOverrides)
+            values.TryAdd(pair.Key, pair.Value);
+
         // 先分词，再替换。替换出来的空格不会再次分词。
         string[] tokens = template.Split(
             (char[]?)null,
@@ -231,8 +234,12 @@ internal static class LegacyArgumentBuilder
                 string name = match.Groups[1].Value;
 
                 if (!values.TryGetValue(name, out string? value))
-                    throw new NotSupportedException(
-                        $"暂未支持参数占位符：{name}");
+                {
+                    // 旧版参数同样保留未知占位符，避免直接阻断启动。
+                    Trace.TraceWarning("版本 {0} 的占位符 {1} 未解析，已保留原样：{2}", config.Version.Id, name, token);
+                    config.UnknownPlaceholderReporter?.Invoke(name);
+                    return match.Value;
+                }
 
                 return value;
             });

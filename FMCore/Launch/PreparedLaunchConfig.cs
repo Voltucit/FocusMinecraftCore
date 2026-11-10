@@ -21,6 +21,11 @@ public sealed class PreparedLaunchConfig
 
     public string? AuthlibInjectorPath { get; }
 
+    /// <summary>仅用于版本 JSON 中非标准占位符；标准占位符始终由启动配置生成。</summary>
+    public IReadOnlyDictionary<string, string> PlaceholderOverrides { get; }
+
+    public Action<string>? UnknownPlaceholderReporter { get; }
+
     public PreparedLaunchConfig(
         MinecraftVersion version,
         JavaInfo java,
@@ -30,7 +35,9 @@ public sealed class PreparedLaunchConfig
         int? windowWidth = null,
         int? windowHeight = null,
         IEnumerable<string>? jvmArguments = null,
-        string? authlibInjectorPath = null)
+        string? authlibInjectorPath = null,
+        IReadOnlyDictionary<string, string>? placeholderOverrides = null,
+        Action<string>? unknownPlaceholderReporter = null)
     {
         ArgumentNullException.ThrowIfNull(version);
         ArgumentNullException.ThrowIfNull(java);
@@ -65,6 +72,8 @@ public sealed class PreparedLaunchConfig
         WindowHeight = windowHeight;
 
         JvmArguments = CopyJvmArguments(jvmArguments);
+        PlaceholderOverrides = CopyPlaceholderOverrides(placeholderOverrides);
+        UnknownPlaceholderReporter = unknownPlaceholderReporter;
 
         if (authlibInjectorPath is not null)
         {
@@ -94,6 +103,27 @@ public sealed class PreparedLaunchConfig
 
     }
 
+
+    private static IReadOnlyDictionary<string, string> CopyPlaceholderOverrides(
+        IReadOnlyDictionary<string, string>? values)
+    {
+        if (values is null || values.Count == 0)
+            return new Dictionary<string, string>(StringComparer.Ordinal);
+        Dictionary<string, string> copy = new(StringComparer.Ordinal);
+        foreach (var pair in values)
+        {
+            if (string.IsNullOrWhiteSpace(pair.Key)
+                || pair.Key.Contains("${", StringComparison.Ordinal)
+                || pair.Key.Contains('}', StringComparison.Ordinal)
+                || pair.Key.Any(char.IsWhiteSpace)
+                || pair.Key.Any(char.IsControl))
+                throw new ArgumentException("占位符名称无效。", nameof(values));
+            if (pair.Value is null || pair.Value.Contains('\0'))
+                throw new ArgumentException("占位符覆盖值不能为 null 或包含空字符。", nameof(values));
+            copy[pair.Key] = pair.Value;
+        }
+        return copy.AsReadOnly();
+    }
 
     private static IReadOnlyList<string> CopyJvmArguments(
         IEnumerable<string>? jvmArguments)

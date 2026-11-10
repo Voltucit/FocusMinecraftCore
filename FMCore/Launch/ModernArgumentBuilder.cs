@@ -99,6 +99,8 @@ internal static class ModernArgumentBuilder
             .FirstOrDefault(item => !string.IsNullOrWhiteSpace(item))
             ?? "custom";
 
+        string primaryJarName = PrimaryJarName(chain);
+
         Dictionary<string, string> values =
             new(StringComparer.Ordinal)
             {
@@ -128,8 +130,16 @@ internal static class ModernArgumentBuilder
                 ["launcher_name"] = "FMCore",
                 ["launcher_version"] =
                     typeof(Launcher).Assembly.GetName()
-                        .Version?.ToString() ?? "unknown"
+                        .Version?.ToString() ?? "unknown",
+                ["primary_jar_name"] = primaryJarName,
+                ["game_jar_name"] = primaryJarName,
+                ["client_jar_name"] = primaryJarName,
+                ["version_jar_name"] = config.Version.Id + ".jar"
             };
+
+        // 只补充未内置的自定义占位符，标准参数不能被实例配置覆盖。
+        foreach (var pair in config.PlaceholderOverrides)
+            values.TryAdd(pair.Key, pair.Value);
 
         if (config.WindowWidth is int width
             && config.WindowHeight is int height)
@@ -166,7 +176,7 @@ internal static class ModernArgumentBuilder
         }
 
         foreach (string template in templates.Jvm)
-            info.ArgumentList.Add(Expand(template, values));
+            info.ArgumentList.Add(Expand(template, values, config.Version.Id, config.UnknownPlaceholderReporter));
 
         // 默认值按选项名称补缺。手动指定 GC 时，不能再叠加版本默认的另一种 GC。
         HashSet<string> configuredOptions = config.JvmArguments
@@ -188,7 +198,7 @@ internal static class ModernArgumentBuilder
                     || !customG1 && option.StartsWith("-XX:G1", StringComparison.Ordinal)))
                 continue;
 
-            string expanded = Expand(template, values);
+            string expanded = Expand(template, values, config.Version.Id, config.UnknownPlaceholderReporter);
             if (!configuredOptions.Add(GetJvmOptionName(expanded)))
                 continue;
 
@@ -202,7 +212,7 @@ internal static class ModernArgumentBuilder
         info.ArgumentList.Add(mainClass);
 
         foreach (string template in templates.Game)
-            info.ArgumentList.Add(Expand(template, values));
+            info.ArgumentList.Add(Expand(template, values, config.Version.Id, config.UnknownPlaceholderReporter));
 
         foreach (string argument in config.GameArguments)
             info.ArgumentList.Add(argument);
@@ -249,6 +259,25 @@ internal static class ModernArgumentBuilder
         template.StartsWith("-Xmx", StringComparison.Ordinal)
         || template.StartsWith("-Xms", StringComparison.Ordinal);
 
+    /// <summary>Forge 启动参数中的 primary_jar_name 指向实际客户端主 jar；优先使用版本声明的 jar，缺省使用继承链底部版本。</summary>
+    private static string PrimaryJarName(IReadOnlyList<MinecraftVersion> chain)
+    {
+        foreach (MinecraftVersion version in chain)
+        {
+            JsonObject data = MinecraftVersionReader.ReadVersionJson(version.Directory);
+            if (data["jar"] is JsonValue value
+                && value.TryGetValue<string>(out string? jar)
+                && !string.IsNullOrWhiteSpace(jar))
+            {
+                jar = jar.Trim();
+                return jar.EndsWith(".jar", StringComparison.OrdinalIgnoreCase) ? jar : jar + ".jar";
+            }
+        }
+        MinecraftVersion baseVersion = chain.LastOrDefault()
+            ?? throw new InvalidDataException("版本继承链为空。");
+        return baseVersion.Id + ".jar";
+    }
+
     private static void CheckJavaVersion(
         IReadOnlyList<MinecraftVersion> chain,
         PreparedLaunchConfig config)
@@ -281,7 +310,9 @@ internal static class ModernArgumentBuilder
 
     private static string Expand(
         string template,
-        IReadOnlyDictionary<string, string> values)
+        IReadOnlyDictionary<string, string> values,
+        string version,
+        Action<string>? unknownReporter)
     {
         string remaining = Placeholder.Replace(template, "");
 
@@ -294,8 +325,12 @@ internal static class ModernArgumentBuilder
             string name = match.Groups[1].Value;
 
             if (!values.TryGetValue(name, out string? value))
-                throw new NotSupportedException(
-                    $"暂未支持参数占位符：{name}");
+            {
+                // 与 PCL 的宽容行为一致：未知占位符保留原样，不阻断启动；可通过覆盖配置修正。
+                Trace.TraceWarning("版本 {0} 的占位符 {1} 未解析，已保留原样：{2}", version, name, template);
+                unknownReporter?.Invoke(name);
+                return match.Value;
+            }
 
             return value;
         });

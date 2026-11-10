@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.Text.Json;
 using FMCore.Accounts;
 using FMCore.Java;
@@ -102,7 +102,9 @@ public sealed partial class MinecraftLauncher
                 windowWidth: _config.GameWindowConfig?.Width,
                 windowHeight: _config.GameWindowConfig?.Height,
                 jvmArguments: _jvmArguments,
-                authlibInjectorPath: _authlibInjectorPath)
+                authlibInjectorPath: _authlibInjectorPath,
+                placeholderOverrides: _config.PlaceholderOverrides,
+                unknownPlaceholderReporter: _config.UnknownPlaceholderReporter)
             {
                 Fullscreen = _config.GameWindowConfig?.Fullscreen ?? false,
                 GameArguments = _gameArguments
