@@ -1,5 +1,11 @@
 # 变更记录
 
+## 2.1.0
+
+- 启动参数支持 `primary_jar_name`、`game_jar_name`、`client_jar_name`、`version_jar_name` 常见别名；主 jar 按版本 `jar` 字段或继承链底部版本解析。
+- 新增 `LaunchConfig.PlaceholderOverrides` 和 `PreparedLaunchConfig.PlaceholderOverrides`：调用方可补充版本 JSON 中的非标准占位符，标准占位符不可覆盖。
+- 未识别的占位符不再阻断启动，保留原样并记录警告；新增 `UnknownPlaceholderReporter`，供启动器收集未解析占位符并在启动失败时提示用户。
+
 ## 2.0.9
 
 - 修复 26.3 默认 GC 与手动 GC 同时启用导致启动失败的问题；默认 JVM 参数按名称补缺，不再覆盖手动设置。
