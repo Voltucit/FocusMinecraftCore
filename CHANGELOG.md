@@ -1,5 +1,10 @@
 # 变更记录
 
+
+## 2.1.1
+
+- 修改了下载逻辑，支持并发和自动下载源
+
 ## 2.1.0
 
 - 启动参数支持 `primary_jar_name`、`game_jar_name`、`client_jar_name`、`version_jar_name` 常见别名；主 jar 按版本 `jar` 字段或继承链底部版本解析。
