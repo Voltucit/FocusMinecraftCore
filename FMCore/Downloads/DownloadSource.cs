@@ -10,17 +10,27 @@ public sealed class DownloadSource
     public static DownloadSource BmclApi { get; } =
         new("BMCLAPI（bangbang93）", DownloadSourcePolicy.GetBmclUrl);
 
+    public static DownloadSource Automatic { get; } =
+        new("自动选择", DownloadSourcePolicy.GetBmclUrl, automaticSelection: true);
+
     public string Name { get; }
+
+    public bool AutomaticSelection { get; }
+
+    public DownloadSource(string name, Func<string, string?> resolveUrl)
+        : this(name, resolveUrl, false) { }
 
     public DownloadSource(
         string name,
-        Func<string, string?> resolveUrl)
+        Func<string, string?> resolveUrl,
+        bool automaticSelection)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(resolveUrl);
 
         Name = name;
         _resolveUrl = resolveUrl;
+        AutomaticSelection = automaticSelection;
     }
 
     public string GetUrl(string originalUrl)
@@ -71,10 +81,16 @@ internal static class DownloadSourcePolicy
         {
             Url = selectedUrl,
             FallbackUrl = changed ? request.Url : request.FallbackUrl,
+            FallbackUrls = request.FallbackUrls,
+            UseSourcePerformance = source.AutomaticSelection,
             FilePath = request.FilePath,
             Size = request.Size,
             Sha1 = request.Sha1,
             Timeout = request.Timeout,
+            HeadersTimeout = request.HeadersTimeout,
+            IdleTimeout = request.IdleTimeout,
+            MaximumSegments = request.MaximumSegments,
+            SegmentThreshold = request.SegmentThreshold,
             MaxRetries = request.MaxRetries,
             RetryDelay = request.RetryDelay,
             ReplaceInvalidFiles = replaceInvalidFiles

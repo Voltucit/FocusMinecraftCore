@@ -184,10 +184,16 @@ public sealed class ModrinthClient
         Action<DownloadProgress>? onProgress = null,
         CancellationToken cancellationToken = default)
     {
+        cancellationToken.ThrowIfCancellationRequested();
+        return FileDownloader.DownloadAsync(CreateDownloadRequest(file, destinationFile), onProgress, cancellationToken);
+    }
+
+    /// <summary>为调用方的批量下载生成请求，保留当前选源和校验要求；本方法不发起网络请求。</summary>
+    public DownloadRequest CreateDownloadRequest(ModrinthFile file, string destinationFile)
+    {
         ArgumentNullException.ThrowIfNull(file);
         ArgumentNullException.ThrowIfNull(file.Hashes);
         ArgumentNullException.ThrowIfNull(Source);
-        cancellationToken.ThrowIfCancellationRequested();
 
         if (string.IsNullOrWhiteSpace(file.Hashes.Sha1))
             throw new NotSupportedException("此文件缺少 SHA-1，不能交给当前校验下载器。");
@@ -200,9 +206,7 @@ public sealed class ModrinthClient
             Sha1 = file.Hashes.Sha1
         });
 
-        return FileDownloader.DownloadAsync(
-            DownloadSourcePolicy.Apply(request, Source, replaceInvalidFiles: false),
-            onProgress, cancellationToken);
+        return DownloadSourcePolicy.Apply(request, Source, replaceInvalidFiles: false);
     }
 
     private async Task<T> GetAsync<T>(

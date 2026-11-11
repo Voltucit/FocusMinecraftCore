@@ -4,148 +4,88 @@ namespace FMCore.Downloads;
 public static partial class FileDownloader
 {
     public static async Task<DownloadResult> DownloadAsync(
-    DownloadRequest request,
-    Action<DownloadProgress>? onProgress = null,
-    CancellationToken cancellationToken = default)
-{
-    cancellationToken.ThrowIfCancellationRequested();
-
-    request = NormalizeRequest(request);
-
-    using CancellationTokenSource deadline =
-        new(request.Timeout);
-
-    using CancellationTokenSource linked =
-        CancellationTokenSource.CreateLinkedTokenSource(
-            cancellationToken,
-            deadline.Token);
-
-    CancellationToken token = linked.Token;
-
-    int attempt = 1;
-    bool callbackFailed = false;
-
-    string currentUrl = request.Url;
-    bool usingFallback = false;
-
-    TransferMeter meter = new();
-
-    long transferredBytes = 0;
-    long lastReportedBytes = 0;
-
-    bool CanFallback(Exception error)
+        DownloadRequest request, Action<DownloadProgress>? onProgress = null,
+        CancellationToken cancellationToken = default)
     {
-        return !usingFallback
-            && request.FallbackUrl is not null
-            && error is (
-                HttpRequestException
-                or HttpIOException);
-    }
+        cancellationToken.ThrowIfCancellationRequested();
+        request = NormalizeRequest(request);
+        using var deadline = new CancellationTokenSource(request.Timeout);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token);
+        var token = linked.Token;
+        var sources = SourceCandidates(request);
+        int sourceIndex = 0, attempt = 1, retries = 0;
+        string currentUrl = sources[0];
+        string currentHost = new Uri(currentUrl).Host;
+        bool callbackFailed = false;
+        var meter = new TransferMeter();
+        long transferred = 0, lastReported = 0;
 
-    void ReportProgress(DownloadProgress progress)
-    {
-        try
+        void ReportProgress(DownloadProgress progress)
         {
-            if (!progress.AlreadyPresent)
-            {
-                long delta =
-                    progress.DownloadedBytes
-                    - lastReportedBytes;
-
-                transferredBytes = checked(
-                    transferredBytes + delta);
-
-                lastReportedBytes =
-                    progress.DownloadedBytes;
-            }
-
-            var metrics = meter.Measure(
-                transferredBytes,
-                progress.TotalBytes
-                - progress.DownloadedBytes);
-
-            onProgress?.Invoke(progress with
-            {
-                Attempt = attempt,
-                TransferredBytes = transferredBytes,
-                BytesPerSecond = metrics.Speed,
-                RemainingTime = metrics.Remaining
-            });
-        }
-        catch
-        {
-            callbackFailed = true;
-            throw;
-        }
-    }
-
-    try
-    {
-        while (true)
-        {
-            token.ThrowIfCancellationRequested();
-            lastReportedBytes = 0;
-
             try
             {
-                DownloadResult result =
-                    await DownloadOnceAsync(
-                        request,
-                        currentUrl,
-                        ReportProgress,
-                        token).ConfigureAwait(false);
-
-                return result with
+                if (!progress.AlreadyPresent)
                 {
-                    Attempts = attempt
-                };
-            }
-            catch (Exception error)
-                when (!callbackFailed
-                    && !token.IsCancellationRequested
-                    && attempt <= request.MaxRetries
-                    && (CanFallback(error)
-                        || IsTransientDownloadError(error)))
-            {
-                if (CanFallback(error))
-                {
-                    currentUrl = request.FallbackUrl!;
-                    usingFallback = true;
-                    attempt++;
-
-                    continue;
+                    // Range 退回普通 GET 时，文件进度可归零，实际传输量不能倒扣。
+                    transferred = checked(transferred + Math.Max(0, progress.DownloadedBytes - lastReported));
+                    lastReported = progress.DownloadedBytes;
                 }
+                var metrics = meter.Measure(transferred, progress.TotalBytes - progress.DownloadedBytes);
+                onProgress?.Invoke(progress with
+                {
+                    Attempt = attempt, TransferredBytes = transferred,
+                    BytesPerSecond = metrics.Speed, RemainingTime = metrics.Remaining, SourceHost = progress.AlreadyPresent ? "" : currentHost
+                });
+            }
+            catch { callbackFailed = true; throw; }
+        }
 
-                TimeSpan delay = GetRetryDelay(
-                    request,
-                    attempt,
-                    error);
-
-                if (delay > request.Timeout)
-                    throw;
-
-                await Task.Delay(delay, token)
-                    .ConfigureAwait(false);
-
-                attempt++;
+        try
+        {
+            while (true)
+            {
+                token.ThrowIfCancellationRequested();
+                lastReported = 0;
+                var watch = System.Diagnostics.Stopwatch.StartNew();
+                try
+                {
+                    var result = await DownloadOnceAsync(request, currentUrl, ReportProgress, token).ConfigureAwait(false);
+                    if (!result.AlreadyPresent) ObserveSource(currentUrl, request.Size, watch.Elapsed);
+                    return result with { Attempts = attempt, SourceHost = result.AlreadyPresent ? "" : currentHost };
+                }
+                catch (Exception error) when (!callbackFailed && !token.IsCancellationRequested
+                    && error is HttpRequestException or HttpIOException or DownloadStalledException or SourceContentException)
+                {
+                    ObserveSource(currentUrl, request.Size, watch.Elapsed, error);
+                    if (sourceIndex + 1 < sources.Length)
+                    {
+                        currentUrl = sources[++sourceIndex];
+                        currentHost = new Uri(currentUrl).Host;
+                        retries = 0;
+                        attempt++;
+                        continue;
+                    }
+                    if (retries >= request.MaxRetries || !IsTransientDownloadError(error)) throw;
+                    var delay = GetRetryDelay(request, ++retries, error);
+                    if (delay > request.Timeout) throw;
+                    await Task.Delay(delay, token).ConfigureAwait(false);
+                    attempt++;
+                }
             }
         }
+        catch (OperationCanceledException error) when (deadline.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        { throw new TimeoutException("文件下载、校验或重试等待超时。", error); }
+        catch (SourceContentException error)
+        { throw new InvalidDataException(error.Message, error); }
     }
-    catch (OperationCanceledException error)
-        when (deadline.IsCancellationRequested
-            && !cancellationToken.IsCancellationRequested)
-    {
-        throw new TimeoutException(
-            "文件下载、校验或重试等待超时。",
-            error);
-    }
-}
 
     internal static bool IsTransientDownloadError(
         Exception error)
     {
         return error switch
         {
+            DownloadStalledException => true,
+
             RetryableHttpException => true,
 
             HttpRequestException requestError =>

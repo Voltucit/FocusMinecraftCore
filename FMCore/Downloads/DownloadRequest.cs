@@ -6,6 +6,12 @@ public sealed class DownloadRequest
 
     internal string? FallbackUrl { get; init; }
 
+    /// <summary>同一文件的备用地址；所有地址必须对应同一个大小和 SHA-1。</summary>
+    public IReadOnlyList<string> FallbackUrls { get; init; } = [];
+
+    /// <summary>根据本进程已观察到的源表现排序；关闭后严格使用提供的顺序。</summary>
+    public bool UseSourcePerformance { get; init; } = true;
+
     public required string FilePath { get; init; }
 
     public required long Size { get; init; }
@@ -15,7 +21,16 @@ public sealed class DownloadRequest
     public bool ReplaceInvalidFiles { get; init; }
 
     public TimeSpan Timeout { get; init; } =
-        TimeSpan.FromMinutes(5);
+        TimeSpan.FromMinutes(30);
+
+    public TimeSpan HeadersTimeout { get; init; } = TimeSpan.FromSeconds(15);
+
+    public TimeSpan IdleTimeout { get; init; } = TimeSpan.FromSeconds(20);
+
+    /// <summary>大文件的最大分段并发；1 表示不分段。</summary>
+    public int MaximumSegments { get; init; } = 4;
+
+    public long SegmentThreshold { get; init; } = 16 * 1024 * 1024;
 
     public int MaxRetries { get; init; } = 2;
 
@@ -42,6 +57,8 @@ public sealed record DownloadProgress(
     public double BytesPerSecond { get; init; }
 
     public TimeSpan? RemainingTime { get; init; }
+
+    public string SourceHost { get; init; } = "";
 }
 
 public sealed record DownloadResult(
@@ -53,6 +70,8 @@ public sealed record DownloadResult(
     public int Attempts { get; init; } = 1;
 
     public string? BackupPath { get; init; }
+
+    public string SourceHost { get; init; } = "";
 }
 
 public sealed record DownloadBatchProgress(

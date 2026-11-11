@@ -7,7 +7,12 @@ namespace FMCore.Downloads;
 public static partial class FileDownloader
 {
     // 复用连接；每次操作通过自己的取消令牌控制超时。
-    private static readonly HttpClient Client = new()
+    private static readonly HttpClient Client = new(new SocketsHttpHandler
+    {
+        ConnectTimeout = TimeSpan.FromSeconds(10),
+        MaxConnectionsPerServer = 32,
+        PooledConnectionLifetime = TimeSpan.FromMinutes(10)
+    })
     {
         Timeout = System.Threading.Timeout.InfiniteTimeSpan
     };
@@ -79,15 +84,29 @@ public static partial class FileDownloader
             onProgress?.Invoke(new DownloadProgress(
                 filePath, 0, request.Size));
 
+            try
+            {
+                string? segmentedSha1 = await TryDownloadSegmentsAsync(request, url, temporaryPath, onProgress,
+                    () => temporaryCreated = true, token).ConfigureAwait(false);
+                if (segmentedSha1 != null)
+                {
+                    token.ThrowIfCancellationRequested();
+                    var segmentedResult = await CommitAsync(request, temporaryPath, request.Size, segmentedSha1, token).ConfigureAwait(false);
+                    temporaryCreated = false;
+                    return segmentedResult;
+                }
+            }
+            catch (RangeUnavailableException)
+            {
+                // Range 被忽略或中途失效时关闭全部分段，再退回同一来源的普通 GET。
+                if (temporaryCreated) { File.Delete(temporaryPath); temporaryCreated = false; }
+                onProgress?.Invoke(new DownloadProgress(filePath, 0, request.Size));
+            }
+
             using HttpRequestMessage message = new(HttpMethod.Get, url);
 
-            if (_userAgent is { } agent)
-                message.Headers.TryAddWithoutValidation("User-Agent", agent);
-
-            using HttpResponseMessage response = await Client.SendAsync(
-                    message,
-                    HttpCompletionOption.ResponseHeadersRead,
-                    token).ConfigureAwait(false);
+            using var lease = await OpenResponseAsync(request, message, token).ConfigureAwait(false);
+            HttpResponseMessage response = lease.Response;
 
             EnsureSuccessfulResponse(response);
 
@@ -95,7 +114,7 @@ public static partial class FileDownloader
                     is long contentLength
                 && contentLength != request.Size)
             {
-                throw new InvalidDataException(
+                throw new SourceContentException(
                     $"服务器返回的文件大小不匹配。" +
                     $"预期 {request.Size}，实际 {contentLength}。");
             }
@@ -129,15 +148,13 @@ public static partial class FileDownloader
 
                 while (true)
                 {
-                    int read = await source.ReadAsync(
-                        buffer.AsMemory(),
-                        token).ConfigureAwait(false);
+                    int read = await ReadNetworkAsync(source, buffer.AsMemory(), request, token).ConfigureAwait(false);
 
                     if (read == 0)
                         break;
 
                     if (read > request.Size - received)
-                        throw new InvalidDataException(
+                        throw new SourceContentException(
                             "下载内容超过清单声明的大小。");
 
                     await output.WriteAsync(
@@ -154,7 +171,7 @@ public static partial class FileDownloader
                 }
 
                 if (received != request.Size)
-                    throw new InvalidDataException(
+                    throw new SourceContentException(
                         $"下载文件大小不匹配。" +
                         $"预期 {request.Size}，实际 {received}。");
 
@@ -162,7 +179,7 @@ public static partial class FileDownloader
                     hasher.GetHashAndReset()).ToLowerInvariant();
 
                 if (actualSha1 != expectedSha1)
-                    throw new InvalidDataException(
+                    throw new SourceContentException(
                         "下载文件的 SHA-1 校验失败。");
 
                 await output.FlushAsync(token)

@@ -41,4 +41,21 @@ await api.DownloadAsync(file, destinationFile);
 
 下载会检查文件，放入实例、安装依赖和启用资源由启动器处理，整个整合包系统也由启动器实现。
 
+## 一次下载多个已选择的文件
+
+启动器解析完必需依赖后，可以先准备全部请求，再使用核心批量下载。下面沿用前文的已选文件；实际使用时向列表中加入其他已选择文件及各自的目标路径。
+
+```csharp
+using FMCore.Downloads;
+
+var requests = new List<DownloadRequest>
+{
+    api.CreateDownloadRequest(file, destinationFile)
+};
+await FileDownloader.DownloadManyAsync(requests, 8, progress =>
+    Console.WriteLine($"{progress.CompletedFiles}/{progress.TotalFiles}，{progress.BytesPerSecond / 1024 / 1024:F2} MiB/s"));
+```
+
+`8` 是同时处理的文件数。大文件默认最多 4 个分段，服务器不支持分段时自动使用普通下载；文件仍须通过完整大小和 SHA-1 检查。这里不执行资源替换、依赖决策或整合包安装。
+
 [筛选、中文分类、详细返回内容和限制](../docs/modrinth.md)

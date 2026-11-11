@@ -765,6 +765,14 @@ public sealed record LaunchCheckResult(
     bool? UsesModernArguments, LaunchCheckIssue? Issue)
 ```
 
+### 为 Modrinth 资源生成批量下载请求
+
+`ModrinthClient.CreateDownloadRequest()` 只生成请求，不下载文件；它保留客户端的选源和 SHA-1 校验要求。调用方可以将一组请求交给 `FileDownloader.DownloadManyAsync()`，自行决定目标路径和资源提交方式。
+
+```text
+public DownloadRequest CreateDownloadRequest(ModrinthFile file, string destinationFile);
+```
+
 ## FMCore.Downloads
 
 安装和文件补全已包含下载步骤。只有自己下载其他已知文件时，才需要直接创建 `DownloadRequest`。
@@ -780,9 +788,12 @@ public sealed class DownloadSource
 {
     public static DownloadSource Official { get; }
     public static DownloadSource BmclApi { get; }
+    public static DownloadSource Automatic { get; }
     public string Name { get; }
+    public bool AutomaticSelection { get; }
 
     public DownloadSource(string name, Func<string, string?> resolveUrl);
+    public DownloadSource(string name, Func<string, string?> resolveUrl, bool automaticSelection);
     public string GetUrl(string originalUrl);
     public override string ToString();
 }
@@ -790,7 +801,7 @@ public sealed class DownloadSource
 
 ### DownloadRequest
 
-地址、目标文件、大小和 SHA-1 必填。超时默认 5 分钟，额外重试默认 2 次，基本等待默认 1 秒。默认保留已有坏文件并报错；`ReplaceInvalidFiles = true` 时，检查好新文件后保留备份再替换。
+地址、目标文件、大小和 SHA-1 必填。整体超时默认 30 分钟，响应头等待默认 15 秒、连续无数据等待默认 20 秒。额外重试默认 2 次，基本等待默认 1 秒。默认保留已有坏文件并报错；`ReplaceInvalidFiles = true` 时，检查好新文件后保留备份再替换。
 
 额外重试数可设 0 到 10，等待时间可设 0 到 30 秒；大小允许为 0。创建请求不会立即下载。
 
@@ -801,7 +812,13 @@ public sealed class DownloadRequest
     public required string FilePath { get; init; }
     public required long Size { get; init; }
     public required string Sha1 { get; init; }
-    public TimeSpan Timeout { get; init; } = TimeSpan.FromMinutes(5);
+    public IReadOnlyList<string> FallbackUrls { get; init; } = [];
+    public bool UseSourcePerformance { get; init; } = true;
+    public TimeSpan Timeout { get; init; } = TimeSpan.FromMinutes(30);
+    public TimeSpan HeadersTimeout { get; init; } = TimeSpan.FromSeconds(15);
+    public TimeSpan IdleTimeout { get; init; } = TimeSpan.FromSeconds(20);
+    public int MaximumSegments { get; init; } = 4;
+    public long SegmentThreshold { get; init; } = 16 * 1024 * 1024;
     public int MaxRetries { get; init; } = 2;
     public TimeSpan RetryDelay { get; init; } = TimeSpan.FromSeconds(1);
     public bool ReplaceInvalidFiles { get; init; }
@@ -831,7 +848,7 @@ public static Task<DownloadResult> DownloadAsync(
 
 `Percentage` 按字节计算。`BytesPerSecond` 是最近约 5 秒的速度，`RemainingTime` 是可空的估计剩余时间。`TransferredBytes` 只统计本次实际传输，包含重试，不包含复用文件大小。
 
-`AlreadyPresent` 表示复用了已有正确文件。`Attempt` 是当前第几次尝试，`Attempts` 是成功所用的尝试次数，`BackupPath` 是本次替换前保留的备份位置。
+`AlreadyPresent` 表示复用了已有正确文件。`Attempt` 是当前第几次尝试，`Attempts` 是成功所用的文件尝试次数，`BackupPath` 是本次替换前保留的备份位置。`SourceHost` 是实际下载主机，复用已有文件时为空。分段内的有限重连不作为新的整文件尝试。
 
 ```text
 public sealed record DownloadProgress(
@@ -845,6 +862,7 @@ public sealed record DownloadProgress(
     public long TransferredBytes { get; init; }
     public double BytesPerSecond { get; init; }
     public TimeSpan? RemainingTime { get; init; }
+    public string SourceHost { get; init; } = "";
 }
 
 public sealed record DownloadResult(
@@ -855,6 +873,7 @@ public sealed record DownloadResult(
 {
     public int Attempts { get; init; } = 1;
     public string? BackupPath { get; init; }
+    public string SourceHost { get; init; } = "";
 }
 ```
 
@@ -864,7 +883,7 @@ public sealed record DownloadResult(
 
 一个文件失败会取消其余操作，等待清理结束后再报告问题；已经完成的正式文件保留。进度方法可能在后台执行。
 
-只对适合重试的网络错误及 HTTP 408、429、500、502、503、504 重试。大小不符、校验失败、磁盘错误、取消或你传入的方法出错时不重试。所有尝试共用原有超时时间，见[下载说明](downloads.md)。
+只对适合重试的网络错误及 HTTP 408、429、500、502、503、504 有限重试。下载内容的大小或校验值不符时，可尝试另一个候选地址；磁盘、已有文件冲突、取消或你传入的方法出错时不会换源掩盖错误。所有尝试共用整体超时，见[下载说明](downloads.md)。
 
 ```text
 public static Task<IReadOnlyList<DownloadResult>> DownloadManyAsync(

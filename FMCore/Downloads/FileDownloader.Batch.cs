@@ -288,6 +288,20 @@ public static partial class FileDownloader
                 nameof(request));
         }
 
+        ArgumentNullException.ThrowIfNull(request.FallbackUrls);
+        var fallbackUrls = request.FallbackUrls.Select(address =>
+        {
+            if (!Uri.TryCreate(address, UriKind.Absolute, out var alternative)
+                || alternative.Scheme is not ("http" or "https"))
+                throw new ArgumentException("备用下载地址必须是完整的 HTTP 或 HTTPS 地址。", nameof(request));
+            return alternative.AbsoluteUri;
+        }).Distinct(StringComparer.Ordinal).ToArray();
+        if (request.HeadersTimeout <= TimeSpan.Zero || request.HeadersTimeout.TotalMilliseconds > uint.MaxValue - 1d
+            || request.IdleTimeout <= TimeSpan.Zero || request.IdleTimeout.TotalMilliseconds > uint.MaxValue - 1d)
+            throw new ArgumentOutOfRangeException(nameof(request), "首包和无数据超时必须大于 0，且不能超过计时器支持的范围。");
+        if (request.MaximumSegments is < 1 or > 8 || request.SegmentThreshold < 1024 * 1024)
+            throw new ArgumentOutOfRangeException(nameof(request), "分段并发必须在 1 到 8 之间，分段阈值不得小于 1 MiB。");
+
         if (request.Timeout <= TimeSpan.Zero
             || request.Timeout.TotalMilliseconds
                 > uint.MaxValue - 1d)
@@ -334,10 +348,16 @@ public static partial class FileDownloader
         {
             Url = url.AbsoluteUri,
             FallbackUrl = fallbackUrl,
+            FallbackUrls = fallbackUrls,
+            UseSourcePerformance = request.UseSourcePerformance,
             FilePath = filePath,
             Size = request.Size,
             Sha1 = request.Sha1.ToLowerInvariant(),
             Timeout = request.Timeout,
+            HeadersTimeout = request.HeadersTimeout,
+            IdleTimeout = request.IdleTimeout,
+            MaximumSegments = request.MaximumSegments,
+            SegmentThreshold = request.SegmentThreshold,
             MaxRetries = request.MaxRetries,
             RetryDelay = request.RetryDelay,
             ReplaceInvalidFiles = request.ReplaceInvalidFiles

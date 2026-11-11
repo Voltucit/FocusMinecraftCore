@@ -33,6 +33,14 @@ dotnet pack ./FMCore/FMCore.csproj -c Release -o ./artifacts/packages
 
 ## 准备正式发布
 
-本地打包成功不等于已经上传。公开发布使用仓库的“手动公开发布”工作流，填写对应 Tag 的版本号；发布正文只读取 CHANGELOG 的同版条目。2.0 与 1.x 的调用不兼容，请按[当前示例](README.md)接入。
+本地打包成功不等于已经上传。公开发布使用仓库的“手动公开发布”工作流：
+
+1. 确认核心包版本已更新，并在 `CHANGELOG.md` 中写好同版记录。
+2. 将代码和工作流改动推送到 `v2.0` 分支。
+3. 在 GitHub Actions 中点击 **Run workflow**，选择 `v2.0`，填写版本号和对应的发布确认文字。
+
+检查和打包通过后，工作流会自动创建 `v<版本号>` Tag、GitHub Release，并继续发布 NuGet，不需要提前创建 Tag。Tag 指向本次运行实际打包的提交；已有同名 Tag 时，仅允许它指向同一提交，不会覆盖其他提交的 Tag。发布正文只读取 `CHANGELOG.md` 的同版条目。
+
+修改工作流后请新建一次运行；重跑旧记录仍会使用旧的工作流和提交。2.0 与 1.x 的调用不兼容，请按[当前示例](README.md)接入。
 
 [dotnet pack 官方说明](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-pack)

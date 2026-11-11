@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 已创建 Tag 对应的版本号，例如 2.0.0
+        description: 要发布的版本号，例如 2.1.1；通过检查后自动创建 Tag
         type: string
         default: 
         required: true
@@ -39,13 +39,13 @@ jobs:
           if ($env:CONFIRMATION -cne "publish $env:PACKAGE_ID $env:VERSION") { throw 'Explicit publication confirmation is required.' }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          ref: v${{ inputs.version }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6
         with:
           global-json-file: global.json
-      - name: 校验 Tag、实际包版本及发布冲突
+      - name: 校验实际包版本、已有 Tag 及发布冲突
         shell: pwsh
         env:
           VERSION: ${{ inputs.version }}
@@ -55,12 +55,16 @@ jobs:
           $propertyJson = & dotnet msbuild FMCore/FMCore.csproj '-getProperty:Version,PackageVersion,PackageId' -nologo
           if ($LASTEXITCODE -ne 0) { throw 'Package property evaluation failed.' }
           $properties = (($propertyJson -join "`n") | ConvertFrom-Json).Properties
-          if ($properties.Version -cne $env:VERSION -or $properties.PackageVersion -cne $env:VERSION) { throw 'Tag/package version mismatch.' }
+          if ($properties.Version -cne $env:VERSION -or $properties.PackageVersion -cne $env:VERSION) { throw 'Input/package version mismatch.' }
           if ($properties.PackageId -cne $env:PACKAGE_ID) { throw 'Package ID mismatch.' }
           $headCommit = git rev-parse HEAD
           if ($LASTEXITCODE -ne 0) { throw 'Cannot read source commit.' }
-          $tagCommit = git rev-parse "v$env:VERSION^{commit}"
-          if ($LASTEXITCODE -ne 0 -or $headCommit -cne $tagCommit) { throw 'Tag commit mismatch.' }
+          $existingTag = git tag --list "v$env:VERSION"
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot check existing tag.' }
+          if ($existingTag) {
+            $tagCommit = git rev-parse "refs/tags/v$env:VERSION^{commit}"
+            if ($LASTEXITCODE -ne 0 -or $headCommit -cne $tagCommit) { throw 'Existing tag points to a different commit.' }
+          }
           git merge-base --is-ancestor HEAD origin/v2.0
           if ($LASTEXITCODE -ne 0) { throw 'Release commit is outside v2.0 history.' }
           if (!(Test-Path -LiteralPath CHANGELOG.md -PathType Leaf)) { throw 'Missing CHANGELOG.md.' }
@@ -129,7 +133,7 @@ jobs:
         with:
           name: FocusMinecraftCore-release-packages
           path: artifacts/packages
-      - name: 校验产物并创建或复用 Release
+      - name: 校验产物并自动创建 Tag 和 Release
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -142,6 +146,7 @@ jobs:
           }
           $assets = @("artifacts/packages/$env:PACKAGE_ID.$env:VERSION.nupkg", "artifacts/packages/$env:PACKAGE_ID.$env:VERSION.snupkg",
             'artifacts/packages/CHANGELOG.md', 'artifacts/packages/SOURCE_COMMIT.txt', 'artifacts/packages/SHA256SUMS.txt')
+          $sourceCommit = (Get-Content -LiteralPath artifacts/packages/SOURCE_COMMIT.txt -Raw).Trim()
           $release = Invoke-WebRequest "https://api.github.com/repos/$env:REPOSITORY/releases/tags/v$env:VERSION" -Headers @{Authorization="Bearer $env:GH_TOKEN"} -SkipHttpErrorCheck -TimeoutSec 30
           if ($release.StatusCode -eq 200) {
             & gh release edit "v$env:VERSION" --repo $env:REPOSITORY --notes-file artifacts/packages/CHANGELOG.md
@@ -149,7 +154,8 @@ jobs:
             # 正文统一读取 CHANGELOG；不覆盖已有同名附件。
             $releaseArgs = @('release', 'upload', "v$env:VERSION", '--repo', $env:REPOSITORY) + $assets
           } elseif ($release.StatusCode -eq 404) {
-            $releaseArgs = @('release', 'create', "v$env:VERSION", '--verify-tag', '--repo', $env:REPOSITORY,
+            # Tag 不存在时，gh 会在本次打包的提交上自动创建。
+            $releaseArgs = @('release', 'create', "v$env:VERSION", '--target', $sourceCommit, '--repo', $env:REPOSITORY,
               '--title', "FocusMinecraftCore v$env:VERSION", '--notes-file', 'artifacts/packages/CHANGELOG.md') + $assets
             if ($env:VERSION.Contains('-')) { $releaseArgs += '--prerelease' } else { $releaseArgs += '--latest' }
           } else {

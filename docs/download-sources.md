@@ -17,10 +17,12 @@ await installer.InstallAsync();
 
 用官方源时，改成 `DownloadSource.Official`，或省略 `Source`。Fabric、Forge、NeoForge、游戏文件补全和资源补全使用同样的写法。
 
+也可以使用 `DownloadSource.Automatic`：对已支持的游戏文件地址先提供 BMCLAPI 与官方候选，随后按本进程实际观察到的成功吞吐及近期网络故障排序。首次请求没有测速记录，优先镜像；已有文件仍按大小和哈希复用，不额外下载测速文件。它不会把不受支持的平台地址强行改成 BMCLAPI 地址。
+
 ## 让用户自己选
 
 ```csharp
-DownloadSource[] choices = [DownloadSource.Official, DownloadSource.BmclApi];
+DownloadSource[] choices = [DownloadSource.Automatic, DownloadSource.Official, DownloadSource.BmclApi];
 DownloadSource selectedSource = choices[selectedIndex];
 ```
 
@@ -43,6 +45,8 @@ var mySource = new DownloadSource("我的下载源", originalUrl =>
 之后使用 `Source = mySource`。返回 `null` 表示这个地址不替换，继续使用原地址。也可以单独调用 `mySource.GetUrl(originalUrl)` 获得转换后的地址。地址必须是完整 HTTP 或 HTTPS 地址，不能夹带账号信息或 `#` 片段。
 
 只在这个方法里转换地址，不要在里面执行下载。它可能被多个任务同时使用。
+
+自定义源可使用第三个构造参数 `automaticSelection: true`，允许文件下载根据已观察到的源表现调整镜像与原始地址顺序。旧的两个参数构造方法保留；默认不重新排序。
 
 ## 查询版本时选源
 
