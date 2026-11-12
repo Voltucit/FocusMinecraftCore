@@ -48,6 +48,8 @@ var mySource = new DownloadSource("我的下载源", originalUrl =>
 
 自定义源可使用第三个构造参数 `automaticSelection: true`，允许文件下载根据已观察到的源表现调整镜像与原始地址顺序。旧的两个参数构造方法保留；默认不重新排序。
 
+用于 `ModrinthClient.Source` 时，`automaticSelection: true` 也允许元数据查询在自定义地址与原始官方地址间回退。自动模式每个来源最多等待 12 秒；网络、超时、部分 HTTP 错误或响应数据无效时尝试另一个来源，近期失败的主机在本进程中降低优先级 60 秒。调用方主动取消时立即停止，不切换来源。手动源保持单一元数据来源及 30 秒超时。
+
 ## 查询版本时选源
 
 ```csharp

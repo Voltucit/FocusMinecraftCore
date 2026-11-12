@@ -19,6 +19,29 @@ foreach (var item in page.Hits)
 
 将 `ResourceType` 换成 `ResourcePack`、`DataPack`、`Shader` 或 `Modpack` 即可查询其他类型，不需要另建客户端。
 
+## 自动回退到官方来源
+
+已有兼容镜像时，可以通过源映射开启自动回退。下面使用示例域名，使用前需要替换成实际兼容 Modrinth API 与文件路径的服务。
+
+```csharp
+using FMCore.Downloads;
+using FMCore.ModsResources;
+
+var automaticSource = new DownloadSource("社区资源自动选择", original =>
+{
+    var uri = new Uri(original);
+    return uri.Host == "api.modrinth.com"
+        ? "https://mirror.example.com/modrinth" + uri.PathAndQuery
+        : uri.Host == "cdn.modrinth.com"
+            ? "https://mirror.example.com" + uri.PathAndQuery
+            : null;
+}, automaticSelection: true);
+var automaticApi = new ModrinthClient { Source = automaticSource };
+var results = await automaticApi.SearchAsync(new ModrinthSearchOptions { Query = "Mod Menu" });
+```
+
+映射地址暂时不可用时，元数据请求会尝试原始官方地址；单个来源最多等待 12 秒。文件下载可根据实际传输表现调整候选顺序，仍保留大小与哈希校验。主动取消会停止整个请求，不继续切换来源。
+
 ## 详情和历史版本
 
 ```csharp

@@ -647,6 +647,8 @@ public sealed record OptiFineInstallVersion(
 
 `ModrinthClient` 提供五类资源搜索、中文分类、作者、介绍、图片、历史版本和文件下载，不需要 API Key。
 
+`Source.AutomaticSelection` 为 `true` 时，元数据查询允许在映射地址与原始官方地址之间回退，每个来源最多等待 12 秒，并将近期故障主机降级 60 秒；主动取消不回退。手动来源仍使用单一地址和 30 秒超时。所有候选失败时抛出保留各来源异常的 `AggregateException`。文件下载继续使用自动选源、大小和哈希校验。
+
 搜索的 `Limit` 默认 20，范围 1 到 100；`Offset` 默认 0。版本、加载器和类别筛选可省略。用英文 ID 筛选，用 `DisplayName` 显示中文。未知标签保留原文，介绍和作者名不自动翻译。
 
 `GetProjectAsync()` 会获取作者团队。版本列表按发布时间排序，不批量读取更新日志；选中版本后用 `GetVersionAsync()` 获取完整详情。`Followers` 是关注人数，不是单独的收藏量。数据包可能保留 `mod` 兼容标记，完整类型同时在 `AllProjectTypes` 中。

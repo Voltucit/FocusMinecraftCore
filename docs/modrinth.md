@@ -2,6 +2,8 @@
 
 使用 `FMCore.ModsResources` 搜索模组、资源包、数据包、光影和整合包。不需要 API Key。
 
+`Source` 支持自定义下载源。源使用 `automaticSelection: true` 时，搜索、分类、项目详情与版本等元数据查询可在映射地址失败后回退到官方地址，下载文件沿用核心的自动选源与哈希校验。具体策略见[选择下载源](download-sources.md)。不传 `Source` 时仍只使用官方服务，不会自动接入第三方镜像。
+
 ## 最短搜索
 
 ```csharp

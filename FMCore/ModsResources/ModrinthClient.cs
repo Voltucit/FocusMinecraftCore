@@ -1,4 +1,5 @@
 using System.Net;
+using System.Collections.Concurrent;
 using System.Net.Http;
 using System.Text.Json;
 using FMCore.Downloads;
@@ -21,6 +22,7 @@ public sealed class ModrinthClient
         PropertyNamingPolicy = JsonNamingPolicy.SnakeCaseLower,
         RespectNullableAnnotations = true
     };
+    private static readonly ConcurrentDictionary<string, long> MetadataCooldown = new(StringComparer.OrdinalIgnoreCase);
 
     public DownloadSource Source { get; init; } = DownloadSource.Official;
 
@@ -215,34 +217,63 @@ public sealed class ModrinthClient
     {
         ArgumentNullException.ThrowIfNull(Source);
         cancellationToken.ThrowIfCancellationRequested();
-        string url = Source.GetUrl(ApiRoot + relativePath);
+        var original = ApiRoot + relativePath;
+        var selected = Source.GetUrl(original);
+        var automatic = Source.AutomaticSelection;
+        var urls = automatic
+            ? new[] { selected, original }.Distinct(StringComparer.Ordinal)
+                .OrderBy(url => MetadataCooldown.TryGetValue(new Uri(url).Host, out var until) && until > Environment.TickCount64 ? 1 : 0).ToArray()
+            : [selected];
+        var failures = new List<Exception>();
+        foreach (var url in urls)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            try
+            {
+                var result = await ReadMetadataAsync<T>(url, automatic, cancellationToken).ConfigureAwait(false);
+                if (automatic) MetadataCooldown.TryRemove(new Uri(url).Host, out _);
+                return result;
+            }
+            catch (Exception error) when (automatic && !cancellationToken.IsCancellationRequested && CanFallbackMetadata(error))
+            {
+                // 资源不存在只回退这一项，不据此判断整个服务器不可用。
+                if (error is not HttpRequestException { StatusCode: HttpStatusCode.NotFound })
+                    MetadataCooldown[new Uri(url).Host] = Environment.TickCount64 + 60_000;
+                failures.Add(new InvalidOperationException("读取 Modrinth 元数据失败：" + new Uri(url).GetLeftPart(UriPartial.Path), error));
+            }
+        }
+        cancellationToken.ThrowIfCancellationRequested();
+        throw new AggregateException("Modrinth 的可用元数据来源均未能完成请求。", failures);
+    }
 
+    private async Task<T> ReadMetadataAsync<T>(string url, bool automatic, CancellationToken cancellationToken) where T : class
+    {
+        using var attempt = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        if (automatic) attempt.CancelAfter(TimeSpan.FromSeconds(12));
         using HttpRequestMessage request = new(HttpMethod.Get, url);
         request.Headers.UserAgent.ParseAdd(_userAgent);
-
         try
         {
-            using HttpResponseMessage response = await Client.SendAsync(
-                request, HttpCompletionOption.ResponseContentRead,
-                cancellationToken).ConfigureAwait(false);
-
+            using var response = await Client.SendAsync(request, HttpCompletionOption.ResponseContentRead, attempt.Token).ConfigureAwait(false);
             response.EnsureSuccessStatusCode();
-
-            if (response.StatusCode != HttpStatusCode.OK
-                || response.Content.Headers.ContentRange is not null)
+            if (response.StatusCode != HttpStatusCode.OK || response.Content.Headers.ContentRange is not null)
                 throw new InvalidDataException("Modrinth 元数据必须返回完整的 HTTP 200。");
-
-            string text = await response.Content.ReadAsStringAsync(
-                cancellationToken).ConfigureAwait(false);
-
-            return JsonSerializer.Deserialize<T>(text, JsonOptions)
-                ?? throw new InvalidDataException("Modrinth 元数据不能为空。");
+            var text = await response.Content.ReadAsStringAsync(attempt.Token).ConfigureAwait(false);
+            return JsonSerializer.Deserialize<T>(text, JsonOptions) ?? throw new InvalidDataException("Modrinth 元数据不能为空。");
         }
         catch (OperationCanceledException error)
             when (!cancellationToken.IsCancellationRequested)
         {
-            throw new TimeoutException("读取 Modrinth 元数据超过 30 秒。", error);
+            throw new TimeoutException(automatic ? "读取 Modrinth 元数据超过 12 秒，将尝试其他可用来源。" : "读取 Modrinth 元数据超过 30 秒。", error);
         }
     }
+
+    private static bool CanFallbackMetadata(Exception error) => error switch
+    {
+        TimeoutException or JsonException or InvalidDataException => true,
+        HttpRequestException request => request.StatusCode is null or HttpStatusCode.Forbidden or HttpStatusCode.NotFound
+            or HttpStatusCode.RequestTimeout or HttpStatusCode.TooManyRequests || (int)request.StatusCode >= 500,
+        _ => false
+    };
 }
 
