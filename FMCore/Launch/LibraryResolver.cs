@@ -389,7 +389,7 @@ internal static IReadOnlyList<JsonObject> GetWindowsLibraryEntries(
 
     List<JsonObject> result = [];
 
-    Dictionary<string, (int Level, JsonObject Library)> selected =
+    Dictionary<string, (int Level, int Index)> selected =
         new(StringComparer.Ordinal);
 
     var layers = chain.SelectMany(ReadLibraryLayers).ToArray();
@@ -409,21 +409,45 @@ internal static IReadOnlyList<JsonObject> GetWindowsLibraryEntries(
                 if (previous.Level < level)
                     continue;
 
-                // 同一层只允许完全相同的重复声明。
-                if (!JsonNode.DeepEquals(previous.Library, library))
+                JsonObject existing = result[previous.Index];
+                if (JsonNode.DeepEquals(existing, library))
+                    continue;
+
+                // 旧版官方清单会再次声明同一 JAR，并补充原生库信息。
+                if (AddsNativeMetadata(existing, library))
+                    result[previous.Index] = library;
+                else if (!AddsNativeMetadata(library, existing))
                     throw new InvalidDataException(
                         $"版本 {version.Id} 存在冲突的依赖声明：{name}");
 
                 continue;
             }
 
-            selected.Add(identity, (level, library));
+            selected.Add(identity, (level, result.Count));
             result.Add(library);
         }
     }
 
     return result;
 }
+
+    private static bool AddsNativeMetadata(JsonObject artifactOnly, JsonObject withNatives)
+    {
+        if (artifactOnly.ContainsKey("natives") || artifactOnly.ContainsKey("extract")
+            || artifactOnly["downloads"] is not JsonObject artifactDownloads
+            || artifactDownloads["artifact"] is not JsonObject
+            || artifactDownloads.ContainsKey("classifiers")
+            || withNatives["natives"] is not JsonObject { Count: > 0 }
+            || withNatives["downloads"] is not JsonObject nativeDownloads
+            || nativeDownloads["classifiers"] is not JsonObject { Count: > 0 })
+            return false;
+
+        JsonObject withoutNatives = withNatives.DeepClone().AsObject();
+        withoutNatives.Remove("natives");
+        withoutNatives.Remove("extract");
+        withoutNatives["downloads"]!.AsObject().Remove("classifiers");
+        return JsonNode.DeepEquals(artifactOnly, withoutNatives);
+    }
 
 // 启动时要求客户端文件已经存在。
 internal static string GetClientJarPath(
