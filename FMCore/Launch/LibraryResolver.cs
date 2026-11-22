@@ -395,6 +395,7 @@ internal static IReadOnlyList<JsonObject> GetWindowsLibraryEntries(
     var layers = chain.SelectMany(ReadLibraryLayers).ToArray();
     for (int level = 0; level < layers.Length; level++)
     {
+        bool preferForgeOverrides = IsLegacyForgeLayer(layers[level]);
         foreach (JsonObject library in layers[level])
         {
             if (!IsLibraryAllowed(library, "windows"))
@@ -413,8 +414,10 @@ internal static IReadOnlyList<JsonObject> GetWindowsLibraryEntries(
                 if (JsonNode.DeepEquals(existing, library))
                     continue;
 
-                // 旧版官方清单会再次声明同一 JAR，并补充原生库信息。
-                if (AddsNativeMetadata(existing, library))
+                JsonObject? selectedLibrary = SelectLibraryWithServerMarker(existing, library, preferForgeOverrides);
+                if (selectedLibrary != null)
+                    result[previous.Index] = selectedLibrary;
+                else if (AddsNativeMetadata(existing, library))
                     result[previous.Index] = library;
                 else if (!AddsNativeMetadata(library, existing))
                     throw new InvalidDataException(
@@ -430,6 +433,58 @@ internal static IReadOnlyList<JsonObject> GetWindowsLibraryEntries(
 
     return result;
 }
+
+    internal static bool IsLegacyForgeLayer(IReadOnlyList<JsonObject> libraries)
+    {
+        const string prefix = "net.minecraftforge:forge:";
+        foreach (var library in libraries)
+        {
+            if (library["rules"] is not null || library["name"] is not JsonValue value
+                || !value.TryGetValue<string>(out var name) || name is null
+                || !name.StartsWith(prefix, StringComparison.Ordinal)) continue;
+
+            var version = name.AsSpan(prefix.Length);
+            var separator = version.IndexOf('-');
+            if (separator > 0 && !version.Contains(':') && !version.Contains('@')
+                && Version.TryParse(version[..separator], out var minecraft)
+                && minecraft.Major == 1 && minecraft.Minor <= 12)
+                return true;
+        }
+        return false;
+    }
+
+    internal static JsonObject? SelectLibraryWithServerMarker(JsonObject previous, JsonObject next, bool preferForgeOverrides)
+    {
+        bool markerFirst = AddsArtifactToServerMarker(previous, next);
+        if (!markerFirst && !AddsArtifactToServerMarker(next, previous)) return null;
+
+        JsonObject marker = markerFirst ? previous : next;
+        JsonObject artifact = markerFirst ? next : previous;
+        // 合并后的旧 Forge 清单仍需使用加载器声明的依赖版本。相同版本可使用完整校验信息。
+        return preferForgeOverrides && ReadName(marker) != ReadName(artifact) ? marker : artifact;
+    }
+
+    private static bool AddsArtifactToServerMarker(JsonObject marker, JsonObject library)
+    {
+        // 仅含坐标和 serverreq 的条目没有独立的下载声明。
+        if (marker.Count != 2
+            || marker["serverreq"] is not JsonValue flag
+            || !flag.TryGetValue<bool>(out bool requiredOnServer)
+            || !requiredOnServer
+            || library["downloads"] is not JsonObject downloads
+            || downloads["artifact"] is not JsonObject artifact)
+            return false;
+
+        string name = ReadName(library);
+        if (GetLibraryIdentity(ReadName(marker)) != GetLibraryIdentity(name)) return false;
+
+        if (!artifact.ContainsKey("path")) return true;
+        if (artifact["path"] is not JsonValue path || !path.TryGetValue<string>(out var relativePath)
+            || relativePath is null) return false;
+
+        string defaultPath = MavenToPath(name);
+        return PathSafety.Comparer.Equals(defaultPath.Replace('\\', '/'), relativePath.Replace('\\', '/'));
+    }
 
     private static bool AddsNativeMetadata(JsonObject artifactOnly, JsonObject withNatives)
     {

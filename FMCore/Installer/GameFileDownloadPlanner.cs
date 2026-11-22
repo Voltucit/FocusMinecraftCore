@@ -22,6 +22,10 @@ internal sealed record GameDownloadFile(
 
     internal bool IsLocallyGenerated { get; init; }
 
+    internal bool IsLegacyLibrary { get; init; }
+
+    internal bool ReuseWithoutDownloadRequest { get; init; }
+
     internal bool IsMetadataReady =>
         MissingFields.Count == 0
         && (Request is not null || IsLocallyGenerated);
@@ -279,7 +283,8 @@ internal static partial class GameFileDownloadPlanner
             MavenUrl = repositoryUrl ? url : null,
             DeclaredSha1 = sha1,
             DeclaredSize = missing.Contains("size") ? null : size,
-            IsLocallyGenerated = isLocallyGenerated
+            IsLocallyGenerated = isLocallyGenerated,
+            IsLegacyLibrary = repositoryUrl
         };
     }
 

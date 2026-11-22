@@ -28,9 +28,10 @@ var result = await completer.CompleteAsync(
 | --- | --- |
 | `TotalFiles` | 本次处理的文件总数 |
 | `DownloadedFiles` | 新下载的文件数 |
-| `ReusedFiles` | 已有且检查通过的文件数 |
+| `ReusedFiles` | 保留的本地文件数，包含下方两类单独统计的文件 |
 | `MappedFiles`、`CopiedFiles` | 旧版映射文件数，以及本次从本地对象复制的文件数 |
 | `VerifiedGeneratedFiles` | 加载器生成、且按本地说明检查通过的文件数 |
+| `UnverifiedLegacyLibraries` | 兼容模式下保留的旧式依赖库中，缺少完整校验声明的数量 |
 | `RepairedFiles` | 本次替换并保留备份的坏文件数 |
 | `Backups` | 原文件和备份文件的路径 |
 
@@ -42,6 +43,8 @@ var result = await completer.CompleteAsync(
 
 `GameDirectory` 默认使用所选版本目录；若启动配置指定了其他工作目录，在补全器和文件检查器中填写同一目录。
 
+对其他启动器导入的旧实例，可设置 `ReuseIncompleteLegacyLibraries = true`。旧式依赖库已存在且符合清单中已有的大小或 SHA-1 时，补全会保留该文件。缺失或与已有声明不符时，仍需可校验的下载来源。该设置默认关闭。
+
 设置 `Source` 可[选择下载源](download-sources.md)。取消方式见[通用说明](advanced.md)，完整声明见[接口参考](public-api.md#fmcoreinstaller)。
 
 ## 哪些文件不能直接修复
@@ -49,6 +52,8 @@ var result = await completer.CompleteAsync(
 Forge 等安装时生成的文件可能没有下载地址。存在大小和校验值说明时，FMCore 可以检查它；缺失或损坏时，需要重新运行对应加载器安装器。损坏文件需先备份移走，不能随意编一个地址下载。
 
 资源列表坏了会先修复列表，再处理其中的资源。部分依赖缺少下载大小或校验值时，补全方法会尝试从对应 Maven 仓库获取。仅检查本地文件的 [GameFileChecker](diagnostics.md) 不会联网补取这些信息。
+
+旧版 Forge 的普通 Maven 地址返回 404 时，可尝试同版本的官方 Universal 包。下载仍使用清单中的本地目标路径，并校验大小和 SHA-1。
 
 本方法不修复 Mod、存档、玩家设置或 Java，也不负责整合包导入。尚未支持的旧资源存放方式见[启动范围](launch.md#使用范围)。
 

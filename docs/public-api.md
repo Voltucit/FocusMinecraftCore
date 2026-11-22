@@ -970,10 +970,13 @@ public sealed record MinecraftInstallResult(
 
 缺少下载校验信息时会尝试从原仓库读取；没有下载地址的生成文件缺失或损坏时，需要重新运行对应加载器安装器。失败保留已完成文件和备份，不表示游戏已启动。见[游戏文件](game-files.md)。
 
+`ReuseIncompleteLegacyLibraries` 默认关闭。开启后，补全可保留已存在且满足已有声明的旧式 Maven 依赖库。兼容模式下缺少完整校验声明的库会计入 `UnverifiedLegacyLibraries`，该数量包含在 `ReusedFiles` 中。
+
 ```text
 public sealed partial class GameFileCompleter
 
 public string? GameDirectory { get; init; }
+public bool ReuseIncompleteLegacyLibraries { get; init; }
 
 public GameFileCompleter(
     string versionId,
@@ -1014,6 +1017,7 @@ public sealed record GameFileCompletionResult(
     int ReusedFiles)
 {
     public int VerifiedGeneratedFiles { get; init; }
+    public int UnverifiedLegacyLibraries { get; init; }
     public int MappedFiles { get; init; }
     public int CopiedFiles { get; init; }
     public int ClientAndLibraryFiles { get; }

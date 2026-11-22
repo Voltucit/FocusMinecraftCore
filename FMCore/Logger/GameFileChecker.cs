@@ -145,7 +145,7 @@ public sealed class GameFileChecker
             Array.AsReadOnly(issues.ToArray()));
     }
 
-    private static async Task<GameFileIssue?> InspectFileAsync(
+    internal static async Task<GameFileIssue?> InspectFileAsync(
         string name,
         string path,
         long? expectedSize,
@@ -182,6 +182,15 @@ public sealed class GameFileChecker
                 return Issue(GameFileIssueKind.SizeMismatch,
                     $"预期 {size} 字节，实际 {stream.Length} 字节。");
 
+            if (!string.IsNullOrWhiteSpace(expectedSha1))
+            {
+                byte[] hash = await SHA1.HashDataAsync(stream, cancellationToken).ConfigureAwait(false);
+                string actualSha1 = Convert.ToHexString(hash).ToLowerInvariant();
+                if (!actualSha1.Equals(expectedSha1, StringComparison.OrdinalIgnoreCase))
+                    return Issue(GameFileIssueKind.Sha1Mismatch,
+                        $"SHA-1 不符。预期 {expectedSha1}，实际 {actualSha1}。");
+            }
+
             List<string> missing = [];
             if (expectedSize is null)
                 missing.Add("size");
@@ -191,14 +200,6 @@ public sealed class GameFileChecker
             if (missing.Count != 0)
                 return Issue(GameFileIssueKind.MetadataMissing,
                     $"缺少 {string.Join("、", missing)} 声明，无法离线确认文件内容。");
-
-            byte[] hash = await SHA1.HashDataAsync(
-                stream, cancellationToken).ConfigureAwait(false);
-
-            string actualSha1 = Convert.ToHexString(hash).ToLowerInvariant();
-            if (!actualSha1.Equals(expectedSha1, StringComparison.OrdinalIgnoreCase))
-                return Issue(GameFileIssueKind.Sha1Mismatch,
-                    $"SHA-1 不符。预期 {expectedSha1}，实际 {actualSha1}。");
 
             return null;
         }

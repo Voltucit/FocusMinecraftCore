@@ -2,6 +2,8 @@
 using System.Net.Http;
 using System.Text;
 using FMCore.Downloads;
+using FMCore.Launch;
+using FMCore.Logger;
 
 
 namespace FMCore.Installer;
@@ -20,6 +22,7 @@ internal static partial class GameFileDownloadPlanner
             string versionId,
             string minecraftRoot,
             string architecture,
+            bool reuseIncompleteLegacyLibraries,
             CancellationToken cancellationToken = default)
     {
         IReadOnlyList<GameDownloadFile> files =
@@ -38,18 +41,26 @@ internal static partial class GameFileDownloadPlanner
 
             GameDownloadFile file = files[index];
 
-            // 信息齐全，或者没有 Maven 地址时，保留原结果。
-            if (file.Request is not null
-                || file.MavenUrl is null)
+            if (file.Request is not null || file.IsLocallyGenerated)
             {
                 resolved[index] = file;
                 continue;
             }
 
-            resolved[index] =
-                await ResolveMavenFileAsync(
-                    file,
-                    cancellationToken).ConfigureAwait(false);
+            if (reuseIncompleteLegacyLibraries && file.IsLegacyLibrary)
+            {
+                var issue = await GameFileChecker.InspectFileAsync(
+                    file.Name, file.FilePath, file.DeclaredSize, file.DeclaredSha1,
+                    generated: false, cancellationToken).ConfigureAwait(false);
+                if (issue is null or { Kind: GameFileIssueKind.MetadataMissing })
+                {
+                    resolved[index] = file with { ReuseWithoutDownloadRequest = true };
+                    continue;
+                }
+            }
+
+            resolved[index] = file.MavenUrl is null ? file
+                : await ResolveMavenFileAsync(file, cancellationToken).ConfigureAwait(false);
         }
 
         cancellationToken.ThrowIfCancellationRequested();
@@ -77,32 +88,38 @@ internal static partial class GameFileDownloadPlanner
 
         CancellationToken token = linked.Token;
 
-        try
+        async Task<DownloadRequest> ReadRequestAsync(string artifactUrl)
         {
             // 已有声明优先，只查询缺少的字段。
             string sha1 = file.DeclaredSha1
-                ?? await ReadMavenSha1Async(
-                    url,
-                    token).ConfigureAwait(false);
+                ?? await ReadMavenSha1Async(artifactUrl, token).ConfigureAwait(false);
 
             long size = file.DeclaredSize
-                ?? await ReadMavenSizeAsync(
-                    url,
-                    token).ConfigureAwait(false);
+                ?? await ReadMavenSizeAsync(artifactUrl, token).ConfigureAwait(false);
 
             token.ThrowIfCancellationRequested();
 
-            DownloadRequest request =
-                FileDownloader.NormalizeRequest(
-                    new DownloadRequest
-                    {
-                        Url = url,
-                        FilePath = file.FilePath,
-                        Size = size,
-                        Sha1 = sha1
-                    });
+            return FileDownloader.NormalizeRequest(new DownloadRequest
+            {
+                Url = artifactUrl,
+                FilePath = file.FilePath,
+                Size = size,
+                Sha1 = sha1
+            });
+        }
 
-            token.ThrowIfCancellationRequested();
+        try
+        {
+            DownloadRequest request;
+            try
+            {
+                request = await ReadRequestAsync(url).ConfigureAwait(false);
+            }
+            catch (HttpRequestException error) when (error.StatusCode == HttpStatusCode.NotFound
+                && GetLegacyForgeUniversalUrl(file.Name, url) is { } universalUrl)
+            {
+                request = await ReadRequestAsync(universalUrl).ConfigureAwait(false);
+            }
 
             return file with
             {
@@ -128,6 +145,25 @@ internal static partial class GameFileDownloadPlanner
                 error,
                 error.StatusCode);
         }
+    }
+
+    internal static string? GetLegacyForgeUniversalUrl(string name, string url)
+    {
+        const string prefix = "net.minecraftforge:forge:";
+        if (!name.StartsWith(prefix, StringComparison.Ordinal)) return null;
+        var coordinateVersion = name.AsSpan(prefix.Length);
+        var separator = coordinateVersion.IndexOf('-');
+        if (separator < 1 || coordinateVersion.Contains(':') || coordinateVersion.Contains('@')
+            || !Version.TryParse(coordinateVersion[..separator], out var minecraft)
+            || minecraft.Major != 1 || minecraft.Minor > 12) return null;
+
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)
+            || uri.Scheme != Uri.UriSchemeHttps || !uri.IsDefaultPort || uri.UserInfo.Length != 0
+            || !uri.Host.Equals("maven.minecraftforge.net", StringComparison.OrdinalIgnoreCase)
+            || uri.AbsolutePath != "/" + LibraryResolver.MavenToPath(name).Replace('\\', '/'))
+            return null;
+
+        return uri.GetLeftPart(UriPartial.Path)[..^4] + "-universal.jar";
     }
 
     private static async Task<string> ReadMavenSha1Async(

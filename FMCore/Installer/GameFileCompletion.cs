@@ -31,6 +31,8 @@ public sealed record GameFileCompletionResult(
 {
     public int VerifiedGeneratedFiles { get; init; }
 
+    public int UnverifiedLegacyLibraries { get; init; }
+
     public int MappedFiles { get; init; }
 
     public int CopiedFiles { get; init; }

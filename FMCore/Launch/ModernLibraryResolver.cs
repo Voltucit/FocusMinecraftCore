@@ -27,6 +27,7 @@ internal static class ModernLibraryResolver
         // 子版本仍然优先于父版本。
         foreach (var layer in chain.SelectMany(LibraryResolver.ReadLibraryLayers))
         {
+            bool preferForgeOverrides = LibraryResolver.IsLegacyForgeLayer(layer);
             Dictionary<string, JsonObject> level =
                 new(StringComparer.Ordinal);
 
@@ -61,11 +62,9 @@ internal static class ModernLibraryResolver
                 if (level.TryGetValue(
                         identity, out JsonObject? previous))
                 {
-                    // 同一个版本号可能分开补充 artifact 和 natives。
-                    // 不同版本号则使用后面的覆盖声明。
-                    level[identity] = GetName(previous) == name
-                        ? MergeObjects(previous, library)
-                        : library;
+                    // 同版本可以补充 artifact 和 natives，不同版本通常沿用声明顺序。
+                    level[identity] = LibraryResolver.SelectLibraryWithServerMarker(previous, library, preferForgeOverrides)
+                        ?? (GetName(previous) == name ? MergeObjects(previous, library) : library);
                 }
                 else
                 {

@@ -14,6 +14,9 @@ public sealed partial class GameFileCompleter
 
     public DownloadSource Source { get; init; } =
         DownloadSource.Official;
+
+    /// <summary>保留已存在且满足已有声明的旧式依赖库，即使其版本清单的下载信息不完整。</summary>
+    public bool ReuseIncompleteLegacyLibraries { get; init; }
     private int _running;
 
     public GameFileCompleter(
@@ -114,10 +117,11 @@ public sealed partial class GameFileCompleter
                 _versionId,
                 _minecraftRoot,
                 _architecture,
+                ReuseIncompleteLegacyLibraries,
                 cancellationToken).ConfigureAwait(false);
 
         GameDownloadFile[] incomplete =
-            files.Where(file => !file.IsMetadataReady)
+            files.Where(file => !file.IsMetadataReady && !file.ReuseWithoutDownloadRequest)
                 .ToArray();
 
         // 所有下载声明先准备齐全，再开始写入文件。
@@ -204,6 +208,7 @@ public sealed partial class GameFileCompleter
         int reusedFiles =
             binaryResults.Count(item => item.AlreadyPresent)
             + generatedFiles.Length
+            + files.Count(file => file.ReuseWithoutDownloadRequest)
             + resources.ReusedFiles;
 
         GameFileBackup[] backups =
@@ -230,6 +235,8 @@ public sealed partial class GameFileCompleter
         {
             Backups = Array.AsReadOnly(backups),
             VerifiedGeneratedFiles = generatedFiles.Length,
+            UnverifiedLegacyLibraries = files.Count(file => file.ReuseWithoutDownloadRequest
+                && (file.DeclaredSha1 is null || file.DeclaredSize is null)),
             MappedFiles = resources.MappedFiles,
             CopiedFiles = resources.CopiedFiles
         };
